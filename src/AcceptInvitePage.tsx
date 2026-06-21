@@ -25,9 +25,13 @@ const getApiErrorMessage = async (response: Response) => {
 };
 
 const getInvitationTokenFromUrl = () => {
-  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash; // مثلا "#/accept-invite?token=xxxx"
+  const queryString = hash.split("?")[1]; // ناخد الجزء بعد علامة الاستفهام
+  if (!queryString) return "";
+  const params = new URLSearchParams(queryString);
   return params.get("token") || "";
 };
+
 
 // ✅ دالة للتحقق من قوة الباسورد
 const validatePassword = (password: string): string | null => {
