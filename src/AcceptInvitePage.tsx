@@ -68,14 +68,14 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
         return;
       }
 
-      const result = (await response.json()) as AuthenticationResponse;
+      const result = (await response.json()) as any;
 
-      if (!result.accessToken) {
+      if (!result?.data?.accessToken) {
         setErrorMessage("Authentication did not return an access token.");
         return;
       }
 
-      onSuccess(result.accessToken, result.refreshToken || undefined);
+      onSuccess(result.data.accessToken, result.data.refreshToken || undefined);
     } catch (error) {
       console.error("Accept invite failed:", error);
       setErrorMessage("Unable to reach SkyGuard authentication.");

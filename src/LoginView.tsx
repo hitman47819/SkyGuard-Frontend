@@ -53,14 +53,14 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         return;
       }
 
-      const result = (await response.json()) as AuthenticationResponse;
+      const result = (await response.json()) as any;
 
-      if (!result.accessToken) {
+      if (!result?.data?.accessToken) {
         setErrorMessage("Authentication did not return an access token.");
         return;
       }
 
-      onLogin(result.accessToken, result.refreshToken || undefined);
+      onLogin(result.data.accessToken, result.data.refreshToken || undefined);
     } catch (error) {
       console.error("Login failed:", error);
       setErrorMessage("Unable to reach SkyGuard authentication.");
