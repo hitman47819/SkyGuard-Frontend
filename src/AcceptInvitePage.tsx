@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Shield, Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { Shield, Lock, Mail, KeyRound, Eye, EyeOff } from "lucide-react";
 
-interface LoginViewProps {
-  onLogin: (accessToken?: string, refreshToken?: string) => void;
+interface AcceptInvitePageProps {
+  onSuccess: (accessToken?: string, refreshToken?: string) => void;
 }
 
 interface AuthenticationResponse {
@@ -18,33 +18,48 @@ interface ProblemDetails {
 const getApiErrorMessage = async (response: Response) => {
   try {
     const result = (await response.json()) as ProblemDetails;
-    return result.detail || result.title || "Authentication failed.";
+    return result.detail || result.title || "Request failed.";
   } catch {
-    return "Authentication failed.";
+    return "Request failed.";
   }
 };
 
-export default function LoginView({ onLogin }: LoginViewProps) {
+const getInvitationTokenFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token') || '';
+};
+
+export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
   const [email, setEmail] = useState("");
+  const [invitationToken, setInvitationToken] = useState(() => getInvitationTokenFromUrl());
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setErrorMessage("");
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/Authentication/login", {
+      const response = await fetch("/api/Authentication/password-setup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userEmail: email,
-          userPassword: password,
+          email,
+          invitationToken,
+          newPassword: password,
         }),
       });
 
@@ -60,9 +75,9 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         return;
       }
 
-      onLogin(result.accessToken, result.refreshToken || undefined);
+      onSuccess(result.accessToken, result.refreshToken || undefined);
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("Accept invite failed:", error);
       setErrorMessage("Unable to reach SkyGuard authentication.");
     } finally {
       setIsSubmitting(false);
@@ -81,11 +96,11 @@ export default function LoginView({ onLogin }: LoginViewProps) {
           </div>
 
           <h1 className="text-3xl font-bold text-center text-white">
-            SkyGuard
+            Accept Invite
           </h1>
 
           <p className="text-center text-slate-400 mt-2 mb-8">
-            Secure Command Access
+            Complete your account setup
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -102,7 +117,26 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@skyguard.ai"
+                  placeholder="your@email.com"
+                  required
+                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-slate-400 block mb-2">
+                Invitation Token
+              </label>
+
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+
+                <input
+                  type="text"
+                  value={invitationToken}
+                  onChange={(e) => setInvitationToken(e.target.value)}
+                  placeholder="Token from invitation email"
                   required
                   className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
                 />
@@ -121,8 +155,9 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Create password"
                   required
+                  minLength={6}
                   className="w-full pl-11 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
                 />
 
@@ -132,6 +167,38 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                   className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-400"
                 >
                   {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-slate-400 block mb-2">
+                Confirm Password
+              </label>
+
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                  required
+                  minLength={6}
+                  className="w-full pl-11 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-400"
+                >
+                  {showConfirmPassword ? (
                     <EyeOff className="w-5 h-5" />
                   ) : (
                     <Eye className="w-5 h-5" />
@@ -151,7 +218,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
               disabled={isSubmitting}
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Authenticating..." : "Login"}
+              {isSubmitting ? "Setting up..." : "Accept Invite & Create Account"}
             </button>
 
           </form>

@@ -7,6 +7,7 @@ import DashboardView from './components/DashboardView';
 import NotFoundView from './components/NotFoundView';
 import Footer from './components/Footer';
 import LoginView from './LoginView';
+import AcceptInvitePage from './AcceptInvitePage';
 import { ActiveTab } from './types';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'skyguard-access-token';
@@ -40,12 +41,14 @@ const validateAccessToken = async (accessToken: string | null) => {
   }
 };
 
+type AuthRoute = 'login' | 'accept-invite' | null;
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('features');
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => localStorage.getItem(SESSION_AUTH_STORAGE_KEY) === 'true'
   );
-  const [isLoginRoute, setIsLoginRoute] = useState(false);
+  const [authRoute, setAuthRoute] = useState<AuthRoute>(null);
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
   const [systemStatus, setSystemStatus] = useState<'active' | 'alert' | 'securing'>('active');
 
@@ -55,7 +58,7 @@ export default function App() {
     const rejectProtectedRoute = () => {
       localStorage.removeItem(SESSION_AUTH_STORAGE_KEY);
       setIsAuthenticated(false);
-      setIsLoginRoute(false);
+      setAuthRoute(null);
       setActiveTab('not-found');
       if (window.location.hash !== '#/not-found') {
         window.location.hash = '#/not-found';
@@ -72,7 +75,7 @@ export default function App() {
       const publicTab = hash.slice(2) as ActiveTab;
 
       if (publicRoute || publicTabs.includes(publicTab)) {
-        setIsLoginRoute(false);
+        setAuthRoute(null);
         setActiveTab(publicRoute ? 'features' : publicTab);
 
         if (hash !== '#/not-found') {
@@ -81,6 +84,11 @@ export default function App() {
             window.location.hash = '#/login';
           }
         }
+        return;
+      }
+
+      if (hash === '#/accept-invite') {
+        setAuthRoute('accept-invite');
         return;
       }
 
@@ -97,7 +105,7 @@ export default function App() {
           return;
         }
 
-        setIsLoginRoute(true);
+        setAuthRoute('login');
         return;
       }
 
@@ -115,17 +123,17 @@ export default function App() {
         }
 
         if (localStorage.getItem(SESSION_AUTH_STORAGE_KEY) !== 'true') {
-          setIsLoginRoute(true);
+          setAuthRoute('login');
           window.location.hash = '#/login';
           return;
         }
 
-        setIsLoginRoute(false);
+        setAuthRoute(null);
         setActiveTab('dashboard');
         return;
       }
 
-      setIsLoginRoute(false);
+      setAuthRoute(null);
       setActiveTab('not-found');
     };
 
@@ -149,7 +157,7 @@ export default function App() {
 
     localStorage.setItem(SESSION_AUTH_STORAGE_KEY, 'true');
     setIsAuthenticated(true);
-    setIsLoginRoute(false);
+    setAuthRoute(null);
     handleSetActiveTab('dashboard');
   };
 
@@ -157,7 +165,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 
-  if (isLoginRoute || isCheckingAccess) {
+  if (authRoute || isCheckingAccess) {
     return (
       <div className="min-h-screen bg-brand-bg text-slate-300 font-sans relative overflow-hidden">
         <div className="relative z-10">
@@ -167,9 +175,11 @@ export default function App() {
                 Validating access token...
               </div>
             </div>
-          ) : (
+          ) : authRoute === 'login' ? (
             <LoginView onLogin={handleLogin} />
-          )}
+          ) : authRoute === 'accept-invite' ? (
+            <AcceptInvitePage onSuccess={handleLogin} />
+          ) : null}
         </div>
       </div>
     );
