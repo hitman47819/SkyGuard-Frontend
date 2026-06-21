@@ -1,0 +1,6 @@
+{
+  "name": "SkyGuard Defense Systems",
+  "description": "An advanced, high-fidelity monitoring portal for passive RF drone detection and airspace security.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

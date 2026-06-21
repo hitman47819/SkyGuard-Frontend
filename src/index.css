@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Geist", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-bg: #08080A;
+  --color-brand-cyan: #6366F1;
+  --color-brand-cyan-light: #818CF8;
+  --color-brand-slate: #111115;
+  --color-brand-slate-light: #1A1A22;
+  --color-brand-accent: #A855F7;
+}
+
+body {
+  background-color: #08080A;
+  color: #D1D5DB;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.hud-border {
+  border: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+.hud-glow {
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.08);
+}
+
+.scanline {
+  background: linear-gradient(to bottom, transparent 50%, rgba(168, 85, 247, 0.03) 50.5%, transparent 51%);
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+
+.cyber-grid {
+  background-image: linear-gradient(rgba(99, 102, 241, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Animations code */
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 6s linear infinite;
+}
+
+@keyframes signal-bounce {
+  0%, 100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-signal {
+  animation: signal-bounce 1.5s ease-in-out infinite;
+}
+
