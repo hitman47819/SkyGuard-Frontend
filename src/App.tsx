@@ -17,7 +17,7 @@ const publicTabs: ActiveTab[] = ['features', 'technology', 'contact', 'not-found
 
 // ✅ Read token only from localStorage
 const getTokenFromStorage = () => {
-  return localStorage.getItem(token);
+  return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
 };
 
 const validateAccessToken = async (accessToken: string | null) => {

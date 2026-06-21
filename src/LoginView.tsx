@@ -24,9 +24,14 @@ const getApiErrorMessage = async (response: Response) => {
   }
 };
 
+const getInvitationTokenFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token') || '';
+};
+
 export default function LoginView({ onLogin }: LoginViewProps) {
   const [email, setEmail] = useState("");
-  const [invitationToken, setInvitationToken] = useState("");
+  const [invitationToken, setInvitationToken] = useState(() => getInvitationTokenFromUrl());
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
