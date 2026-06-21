@@ -10,6 +10,7 @@ import LoginView from './LoginView';
 import { ActiveTab } from './types';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'skyguard-access-token';
+const REFRESH_TOKEN_STORAGE_KEY = 'skyguard-refresh-token';
 const SESSION_AUTH_STORAGE_KEY = 'skyguard-authenticated';
 
 const publicTabs: ActiveTab[] = ['features', 'technology', 'contact', 'not-found'];
@@ -49,7 +50,13 @@ const validateAccessToken = async (accessToken: string | null) => {
     }
 
     const text = await response.text();
-    return text.trim().toLowerCase() === 'true';
+
+    if (text.trim().toLowerCase() === 'true') {
+      return true;
+    }
+
+    const result = JSON.parse(text) as { success?: boolean; data?: boolean };
+    return result.data === true || result.success === true;
   } catch (error) {
     console.error('Token validation failed:', error);
     return false;
@@ -169,7 +176,15 @@ export default function App() {
     window.location.hash = `#/${tab}`;
   };
 
-  const handleLogin = () => {
+  const handleLogin = (accessToken?: string, refreshToken?: string) => {
+    if (accessToken) {
+      sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+    }
+
+    if (refreshToken) {
+      sessionStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+    }
+
     sessionStorage.setItem(SESSION_AUTH_STORAGE_KEY, 'true');
     setIsAuthenticated(true);
     setIsLoginRoute(false);
@@ -260,3 +275,5 @@ export default function App() {
     </div>
   );
 }
+
+
