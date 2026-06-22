@@ -72,28 +72,32 @@ export default function DashboardView({ setSystemStatus }: DashboardViewProps) {
   /* ---------- USER ---------- */
   const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const token = localStorage.getItem("accessToken");
+ useEffect(() => {
+  const fetchUser = async () => {
+    const token = localStorage.getItem("skyguard-access-token");
 
-        const res = await fetch("/api/Users/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    if (!token) {
+      console.warn("No token found");
+      return;
+    }
 
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
+    const res = await fetch(`/api/Users/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+    });
 
-    fetchUser();
-  }, []);
+    if (res.ok) {
+      const data = await res.json();
+      setUser(data);
+    } else {
+      console.error("Failed:", await res.text());
+    }
+  };
+
+  fetchUser();
+}, []);
 
   /* ---------- STATE ---------- */
 
