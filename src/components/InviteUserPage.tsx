@@ -1,0 +1,224 @@
+import { useState } from "react";
+import { Mail, User, Phone, Shield, AlertCircle, CheckCircle } from "lucide-react";
+
+interface InviteUserPageProps {
+  userRole: number;
+}
+
+interface ProblemDetails {
+  title?: string;
+  detail?: string;
+}
+
+const getApiErrorMessage = async (response: Response) => {
+  try {
+    const result = (await response.json()) as ProblemDetails;
+    return result.detail || result.title || "Request failed.";
+  } catch {
+    return "Request failed.";
+  }
+};
+
+export default function InviteUserPage({ userRole }: InviteUserPageProps) {
+  const [userEmail, setUserEmail] = useState("");
+  const [userFirstName, setUserFirstName] = useState("");
+  const [userLastName, setUserLastName] = useState("");
+  const [userPhone, setUserPhone] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const canChooseAdmin = userRole === 1;
+  const effectiveIsAdmin = canChooseAdmin ? isAdmin : false;
+
+  const handleSubmit = async (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!userEmail || !userFirstName || !userLastName || !userPhone) {
+      setErrorMessage("All fields are required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const token = localStorage.getItem("skyguard-access-token");
+
+      const response = await fetch("/api/Authentication/invite", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userEmail,
+          userFirstName,
+          userLastName,
+          userPhone,
+          isAdmin: effectiveIsAdmin,
+        }),
+      });
+
+      if (!response.ok) {
+        setErrorMessage(await getApiErrorMessage(response));
+        return;
+      }
+
+      setSuccessMessage("User invitation sent successfully!");
+      setUserEmail("");
+      setUserFirstName("");
+      setUserLastName("");
+      setUserPhone("");
+      setIsAdmin(false);
+    } catch (error) {
+      console.error("Invite failed:", error);
+      setErrorMessage("Unable to reach SkyGuard authentication.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="bg-slate-900/70 backdrop-blur-xl border border-indigo-500/20 rounded-3xl p-8 shadow-2xl">
+        <div className="flex justify-center mb-6">
+          <div className="p-4 rounded-full bg-indigo-500/10 border border-indigo-500/30">
+            <Mail className="w-10 h-10 text-indigo-400" />
+          </div>
+        </div>
+
+        <h1 className="text-3xl font-bold text-center text-white">Invite User</h1>
+
+        <p className="text-center text-slate-400 mt-2 mb-8">
+          Send an invitation to a new user
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="text-sm text-slate-400 block mb-2">
+                First Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+                <input
+                  type="text"
+                  value={userFirstName}
+                  onChange={(e) => setUserFirstName(e.target.value)}
+                  placeholder="John"
+                  required
+                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm text-slate-400 block mb-2">
+                Last Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+                <input
+                  type="text"
+                  value={userLastName}
+                  onChange={(e) => setUserLastName(e.target.value)}
+                  placeholder="Doe"
+                  required
+                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-slate-400 block mb-2">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+              <input
+                type="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="john@example.com"
+                required
+                className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-slate-400 block mb-2">
+              Phone Number
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+              <input
+                type="tel"
+                value={userPhone}
+                onChange={(e) => setUserPhone(e.target.value)}
+                placeholder="01535469561"
+                required
+                className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {canChooseAdmin && (
+            <div className="flex items-center space-x-3 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+              <input
+                type="checkbox"
+                id="isAdmin"
+                checked={isAdmin}
+                onChange={(e) => setIsAdmin(e.target.checked)}
+                className="w-5 h-5 rounded bg-slate-700 border-slate-600 text-indigo-600 cursor-pointer"
+              />
+              <label htmlFor="isAdmin" className="text-sm text-slate-300 cursor-pointer flex items-center gap-2">
+                <Shield className="w-4 h-4 text-indigo-400" />
+                Make this user an administrator
+              </label>
+            </div>
+          )}
+
+          {!canChooseAdmin && (
+            <div className="flex items-center space-x-3 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              <p className="text-sm text-slate-300">
+                User will be invited with standard permissions
+              </p>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 flex items-start gap-2">
+              <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Sending Invitation..." : "Send Invitation"}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-xs text-emerald-400">
+          SYSTEM STATUS : ACTIVE
+        </div>
+      </div>
+    </div>
+  );
+}

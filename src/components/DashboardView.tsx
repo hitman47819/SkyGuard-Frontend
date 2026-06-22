@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   ShieldCheck, AlertCircle, ShieldAlert, Zap, Compass, RefreshCw,
-  Trash2, Radio, Play, Pause, Database, Layers, Swords, Info
+  Trash2, Radio, Play, Pause, Database, Layers, Swords, Info, UserPlus
 } from 'lucide-react';
+import InviteUserPage from './InviteUserPage';
 
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -71,6 +72,7 @@ export default function DashboardView({ setSystemStatus }: DashboardViewProps) {
 
   /* ---------- USER ---------- */
   const [user, setUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invite'>('dashboard');
 
  useEffect(() => {
   const fetchUser = async () => {
@@ -211,28 +213,67 @@ export default function DashboardView({ setSystemStatus }: DashboardViewProps) {
 
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12 mt-16 space-y-8">
 
-        {/* HEADER */}
-        <div className="bg-brand-slate/40 p-5 border border-white/5 rounded-sm">
+        {/* HEADER WITH TABS */}
+        <div className="space-y-4">
+          <div className="bg-brand-slate/40 p-5 border border-white/5 rounded-sm">
 
-          <h1 className="font-display text-xl font-bold text-white flex items-center gap-2">
-            <Database className="w-5 h-5 text-brand-cyan animate-pulse" />
-            Airspace Tactical Control Console
-          </h1>
+            <h1 className="font-display text-xl font-bold text-white flex items-center gap-2">
+              <Database className="w-5 h-5 text-brand-cyan animate-pulse" />
+              Airspace Tactical Control Console
+            </h1>
 
-          {user && (
-            <p className="text-xs text-brand-cyan font-mono mt-1">
-              Hello, {user.userFirstName} 👋 | Role: {user.userrole}
+            {user && (
+              <p className="text-xs text-brand-cyan font-mono mt-1">
+                Hello, {user.userFirstName} 👋 | Role: {user.userrole}
+              </p>
+            )}
+
+            <p className="text-xs text-on-surface-variant mt-1">
+              Central command theater mapping real-time RF nodes.
             </p>
-          )}
+          </div>
 
-          <p className="text-xs text-on-surface-variant mt-1">
-            Central command theater mapping real-time RF nodes.
-          </p>
+          {/* TAB NAVIGATION */}
+          <div className="flex gap-3 border-b border-white/10">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-4 py-3 font-semibold text-sm transition-all flex items-center gap-2 border-b-2 ${
+                activeTab === 'dashboard'
+                  ? 'text-indigo-400 border-indigo-500'
+                  : 'text-slate-400 border-transparent hover:text-slate-300'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              Dashboard
+            </button>
+            {user && user.userrole !== 3 && (
+              <button
+                onClick={() => setActiveTab('invite')}
+                className={`px-4 py-3 font-semibold text-sm transition-all flex items-center gap-2 border-b-2 ${
+                  activeTab === 'invite'
+                    ? 'text-indigo-400 border-indigo-500'
+                    : 'text-slate-400 border-transparent hover:text-slate-300'
+                }`}
+              >
+                <UserPlus className="w-4 h-4" />
+                Invite User
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* باقي الداشبورد عندك زي ما هو (Radar / Charts / Logs) */}
-        {/* أنا سيبتهم اختصارًا عشان الرسالة ما تبقاش 2000 سطر */}
-        {/* لو عايز أرجعهولك كامل 100% UI زي ما هو قولّي */}
+        {/* TAB CONTENT */}
+        {activeTab === 'invite' && user && (
+          <div className="mt-8">
+            <InviteUserPage userRole={user.userrole} />
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <>
+            {/* Dashboard content would go here - currently abbreviated */}
+          </>
+        )}
 
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { Shield, Lock, Mail, KeyRound, Eye, EyeOff } from "lucide-react";
 
 interface AcceptInvitePageProps {
   onSuccess: (accessToken?: string, refreshToken?: string) => void;
@@ -25,27 +25,13 @@ const getApiErrorMessage = async (response: Response) => {
 };
 
 const getInvitationTokenFromUrl = () => {
-  const hash = window.location.hash; // مثلا "#/accept-invite?token=xxxx"
-  const queryString = hash.split("?")[1]; // ناخد الجزء بعد علامة الاستفهام
-  if (!queryString) return "";
-  const params = new URLSearchParams(queryString);
-  return params.get("token") || "";
-};
-
-
-// ✅ دالة للتحقق من قوة الباسورد
-const validatePassword = (password: string): string | null => {
-  if (password.length < 8) return "Password must be at least 8 characters.";
-  if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter.";
-  if (!/[a-z]/.test(password)) return "Password must contain at least one lowercase letter.";
-  if (!/[0-9]/.test(password)) return "Password must contain at least one number.";
-  if (!/[!@#$%^&*]/.test(password)) return "Password must contain at least one special character (!@#$%^&*).";
-  return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token') || '';
 };
 
 export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
   const [email, setEmail] = useState("");
-  const [invitationToken] = useState(() => getInvitationTokenFromUrl()); // ✅ مش هيظهر في الفورم
+  const [invitationToken, setInvitationToken] = useState(() => getInvitationTokenFromUrl());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -56,12 +42,6 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setErrorMessage("");
-
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setErrorMessage(passwordError);
-      return;
-    }
 
     if (password !== confirmPassword) {
       setErrorMessage("Passwords do not match.");
@@ -144,7 +124,24 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
               </div>
             </div>
 
-            {/* ✅ Token field اتشال */}
+            <div>
+              <label className="text-sm text-slate-400 block mb-2">
+                Invitation Token
+              </label>
+
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
+
+                <input
+                  type="text"
+                  value={invitationToken}
+                  onChange={(e) => setInvitationToken(e.target.value)}
+                  placeholder="Token from invitation email"
+                  required
+                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
 
             <div>
               <label className="text-sm text-slate-400 block mb-2">
@@ -160,6 +157,7 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create password"
                   required
+                  minLength={6}
                   className="w-full pl-11 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
                 />
 
@@ -191,6 +189,7 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm password"
                   required
+                  minLength={6}
                   className="w-full pl-11 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
                 />
 
