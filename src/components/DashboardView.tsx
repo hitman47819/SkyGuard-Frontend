@@ -221,7 +221,7 @@ export default function DashboardView({ setSystemStatus }: DashboardViewProps) {
 
           {user && (
             <p className="text-xs text-brand-cyan font-mono mt-1">
-              Hello, {user.userFirstName} 👋 | Role: {user.userRole}
+              Hello, {user.userFirstName} 👋 | Role: {user.userrole}
             </p>
           )}
 
