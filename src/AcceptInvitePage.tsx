@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Lock, Mail, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Shield, Lock, Mail, Eye, EyeOff } from "lucide-react";
 
 interface AcceptInvitePageProps {
   onSuccess: (accessToken?: string, refreshToken?: string) => void;
@@ -124,24 +124,6 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
               </div>
             </div>
 
-            <div>
-              <label className="text-sm text-slate-400 block mb-2">
-                Invitation Token
-              </label>
-
-              <div className="relative">
-                <KeyRound className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
-
-                <input
-                  type="text"
-                  value={invitationToken}
-                  onChange={(e) => setInvitationToken(e.target.value)}
-                  placeholder="Token from invitation email"
-                  required
-                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-            </div>
 
             <div>
               <label className="text-sm text-slate-400 block mb-2">
