@@ -16,7 +16,7 @@ export default function DroneTypesPage() {
   
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', manufacturer: '', description: '' });
+  const [form, setForm] = useState({ name: '', manufacturer: '', frequencyRange: '', notes: '' });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchTypes = async (pageNum: number = 1) => {
@@ -24,18 +24,23 @@ export default function DroneTypesPage() {
     try {
       const res = await fetch(`/api/Dronetype?pagenum=${pageNum}`, { headers: getAuthHeaders() });
       const raw = await res.json();
-      const items = Array.isArray(raw) ? raw : (raw.data || []);
-      const norm = items.map((t: any) => ({ ...t, id: t.id ?? t.droneTypeID ?? t.droneTypeId }));
+      const wrapper = Array.isArray(raw) ? raw[0] : raw;
+      const items = wrapper?.responses ?? [];
+      const next = wrapper?.hassnextpage ?? false;
+      const norm = items.map((t: any) => ({
+        ...t,
+        id: t.id ?? t.droneTypeID ?? t.droneTypeId,
+      }));
       setTypes(norm);
-      setHasMore(norm.length === 10);
+      setHasMore(next);
     } catch (err: any) { setError(err.message); } 
     finally { setLoading(false); }
   };
 
   useEffect(() => { fetchTypes(page); }, [page]);
 
-  const openCreate = () => { setEditing(null); setForm({ name: '', manufacturer: '', description: '' }); setShowModal(true); };
-  const openEdit = (t: any) => { setEditing(t); setForm({ name: t.name, manufacturer: t.manufacturer || '', description: t.description || '' }); setShowModal(true); };
+  const openCreate = () => { setEditing(null); setForm({ name: '', manufacturer: '', frequencyRange: '', notes: '' }); setShowModal(true); };
+  const openEdit = (t: any) => { setEditing(t); setForm({ name: t.name, manufacturer: t.manufacturer || '', frequencyRange: t.frequencyRange || '', notes: t.notes || '' }); setShowModal(true); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +76,9 @@ export default function DroneTypesPage() {
             <Plane className="w-5 h-5 text-brand-cyan" /> Drone Types Management
           </h1>
           <div className="flex gap-3">
-            <button onClick={() => fetchTypes(page)} className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan font-mono text-xs uppercase rounded-sm"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
+            <button onClick={() => fetchTypes(page)} disabled={loading} className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan font-mono text-xs uppercase rounded-sm disabled:opacity-30 disabled:cursor-not-allowed">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
             <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm"><Plus className="w-3.5 h-3.5" /> Add Drone Type</button>
           </div>
         </div>
@@ -87,17 +94,19 @@ export default function DroneTypesPage() {
                   <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">ID</th>
                   <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Name</th>
                   <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Manufacturer</th>
+                  <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Freq. Range</th>
                   <th className="text-right px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={4} className="text-center p-8 animate-pulse">Loading...</td></tr> :
-                 types.length === 0 ? <tr><td colSpan={4} className="text-center p-8 text-slate-500">No drone types found</td></tr> :
+                {loading ? <tr><td colSpan={5} className="text-center p-8 animate-pulse text-slate-500">Loading...</td></tr> :
+                 types.length === 0 ? <tr><td colSpan={5} className="text-center p-8 text-slate-500">No drone types found</td></tr> :
                  types.map(t => (
                   <tr key={t.id} className="border-b border-white/5 hover:bg-brand-cyan/5 group">
                     <td className="px-4 py-3 font-mono text-xs text-brand-cyan">#{t.id}</td>
                     <td className="px-4 py-3 text-xs text-white">{t.name}</td>
                     <td className="px-4 py-3 text-xs text-on-surface-variant">{t.manufacturer || 'N/A'}</td>
+                    <td className="px-4 py-3 text-xs text-on-surface-variant">{t.frequencyRange || 'N/A'}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100">
                         <button onClick={() => openEdit(t)} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"><Pencil className="w-3.5 h-3.5" /></button>
@@ -113,8 +122,8 @@ export default function DroneTypesPage() {
            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-brand-bg/30">
             <span className="font-mono text-[10px] text-on-surface-variant">Page {page}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-              <button onClick={() => setPage(p => p + 1)} disabled={!hasMore} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || loading} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="w-4 h-4" /></button>
+              <button onClick={() => setPage(p => p + 1)} disabled={!hasMore || loading} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
@@ -137,8 +146,12 @@ export default function DroneTypesPage() {
                 <input type="text" value={form.manufacturer} onChange={e => setForm({...form, manufacturer: e.target.value})} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
               </div>
               <div>
-                <label className="font-mono text-[10px] uppercase text-on-surface-variant">Description</label>
-                <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1 min-h-[80px]" />
+                <label className="font-mono text-[10px] uppercase text-on-surface-variant">Frequency Range</label>
+                <input type="text" value={form.frequencyRange} onChange={e => setForm({...form, frequencyRange: e.target.value})} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
+              </div>
+              <div>
+                <label className="font-mono text-[10px] uppercase text-on-surface-variant">Notes</label>
+                <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1 min-h-[80px]" />
               </div>
               <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-white/10 text-slate-400 font-mono text-xs uppercase rounded-sm">Cancel</button>

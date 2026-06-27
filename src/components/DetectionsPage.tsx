@@ -9,35 +9,50 @@ const getAuthHeaders = () => {
   };
 };
 
+export interface Detection {
+  id?: number;
+  name?: string;
+  description?: string;
+  isDroneRelated?: boolean;
+}
+
+export interface DetectionResponse {
+  responses: Detection[];
+  hasnextpage: boolean;
+}
 export default function DetectionsPage() {
-  const [detections, setDetections] = useState<any[]>([]);
+const [detections, setDetections] = useState<Detection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  const fetchDetections = async (pageNum: number = 1) => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`/api/Detections?pagenum=${pageNum}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      
-      const raw = await res.json();
-      const items = Array.isArray(raw) ? raw : (raw.data || []);
-      const normalized = items.map((d: any) => ({ ...d, id: d.id ?? d.detectionID }));
+const fetchDetections = async (pageNum: number = 1) => {
+  setLoading(true);
+  setError('');
 
-      setDetections(normalized);
-      setHasMore(normalized.length === 10);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load detections');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const res = await fetch(`/api/Detections?pagenum=${pageNum}`, {
+      headers: getAuthHeaders(),
+    });
 
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const result: DetectionResponse = await res.json();
+
+    const normalized = (result.responses ?? []).map(d => ({
+      ...d,
+      id: d.detectionID ?? d.id,
+    }));
+
+    setDetections(normalized);
+    setHasMore(result.hasnextpage);
+  } catch (err: any) {
+    setError(err.message || 'Failed to load detections');
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchDetections(page);
   }, [page]);
@@ -111,8 +126,21 @@ export default function DetectionsPage() {
           <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-brand-bg/30">
             <span className="font-mono text-[10px] text-on-surface-variant">Page {page}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-              <button onClick={() => setPage(p => p + 1)} disabled={!hasMore} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1 || loading}
+              className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasMore || loading}
+              className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
             </div>
           </div>
         </div>

@@ -32,7 +32,10 @@ export default function SegmentsPage() {
     endTime: '',
   });
   const [submitting, setSubmitting] = useState(false);
-
+interface SegmentResponse {
+    responses: Segment[];
+    hasnextpage: boolean;
+}
   const canEdit = user ? user.userrole === 1 || user.userrole === 2 : false;
 
   const fetchUser = async () => {
@@ -60,18 +63,15 @@ export default function SegmentsPage() {
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       
-      const raw = await res.json();
-      // API returns a raw array, not { data: [...] }
-      const items = Array.isArray(raw) ? raw : (raw.data ?? []);
-      
-      // Normalize segmentID -> id if the type still uses `id`
-      const normalized = items.map((s: any) => ({
-        ...s,
-        id: s.segmentID ?? s.id,
-      }));
 
+     const result: SegmentResponse = await res.json();
+
+      const normalized = (result.responses ?? []).map(s => ({
+          ...s,
+          id: s.segmentID ?? s.id,
+      }));
       setSegments(normalized);
-      setHasMore(normalized.length === 10);
+      setHasMore(result.hasnextpage);
     } catch (err: any) {
       setError(err.message || 'Failed to load segments');
     } finally {
@@ -320,15 +320,16 @@ export default function SegmentsPage() {
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
+                 onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || loading}
                 className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 rounded-sm transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={!hasMore}
+             <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasMore || loading}
+
                 className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 rounded-sm transition-all"
               >
                 <ChevronRight className="w-4 h-4" />

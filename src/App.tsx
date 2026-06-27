@@ -222,7 +222,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-bg text-slate-300 flex flex-col font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-brand-bg text-slate-300 flex flex-col font-sans relative overflow-x-hidden">
       <Header activeTab={activeTab} setActiveTab={handleSetActiveTab} systemStatus={systemStatus} />
       <main className="flex-grow z-10">
         {activeTab === 'features' && <FeaturesView onEnterC2={() => handleSetActiveTab('dashboard')} setActiveTab={handleSetActiveTab} />}
