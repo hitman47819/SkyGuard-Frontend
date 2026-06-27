@@ -74,7 +74,7 @@ export default function UsersPage() {
       }));
 
       setUsers(normalized);
-      setHasMore(normalized.length === 20);
+      setHasMore(normalized.length === 10);
     } catch (err: any) {
       setError(err.message || 'Failed to load users');
     } finally {

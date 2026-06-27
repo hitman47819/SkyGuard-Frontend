@@ -27,7 +27,7 @@ export default function PacksPage() {
       const items = Array.isArray(raw) ? raw : (raw.data || []);
       const norm = items.map((p: any) => ({ ...p, id: p.id ?? p.packetID ?? p.packID }));
       setPacks(norm);
-      setHasMore(norm.length === 20);
+      setHasMore(norm.length === 10);
     } catch (err: any) { setError(err.message); } 
     finally { setLoading(false); }
   };

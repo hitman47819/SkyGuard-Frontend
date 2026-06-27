@@ -30,7 +30,7 @@ export default function DetectionsPage() {
       const normalized = items.map((d: any) => ({ ...d, id: d.id ?? d.detectionID }));
 
       setDetections(normalized);
-      setHasMore(normalized.length === 20);
+      setHasMore(normalized.length === 10);
     } catch (err: any) {
       setError(err.message || 'Failed to load detections');
     } finally {

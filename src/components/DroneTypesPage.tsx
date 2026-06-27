@@ -27,7 +27,7 @@ export default function DroneTypesPage() {
       const items = Array.isArray(raw) ? raw : (raw.data || []);
       const norm = items.map((t: any) => ({ ...t, id: t.id ?? t.droneTypeID ?? t.droneTypeId }));
       setTypes(norm);
-      setHasMore(norm.length === 20);
+      setHasMore(norm.length === 10);
     } catch (err: any) { setError(err.message); } 
     finally { setLoading(false); }
   };

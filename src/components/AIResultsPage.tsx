@@ -25,7 +25,7 @@ export default function AIResultsPage() {
       const normalized = items.map((r: any) => ({ ...r, id: r.id ?? r.aiResultID }));
 
       setResults(normalized);
-      setHasMore(normalized.length === 20);
+      setHasMore(normalized.length === 10);
     } catch (err: any) {
       setError(err.message || 'Failed to load AI results');
     } finally {
