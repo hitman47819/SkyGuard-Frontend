@@ -12,6 +12,10 @@ import Footer from './components/Footer';
 import LoginView from './components/LoginView';
 import AcceptInvitePage from './components/AcceptInvitePage';
 import type { ActiveTab } from './types';
+import DetectionsPage from './components/DetectionsPage';
+import AIResultsPage from './components/AIResultsPage';
+import PacksPage from './components/PacksPage';
+import DroneTypesPage from './components/DroneTypesPage';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'skyguard-access-token';
 const REFRESH_TOKEN_STORAGE_KEY = 'skyguard-refresh-token';
@@ -265,6 +269,10 @@ export default function App() {
         {activeTab === 'dashboard' && <DashboardView />}
         {activeTab === 'segments' && <SegmentsPage />}
         {activeTab === 'users' && <UsersPage />}
+        {activeTab === 'detections' && <DetectionsPage />}
+        {activeTab === 'airesults' && <AIResultsPage />}
+        {activeTab === 'packs' && <PacksPage />}
+        {activeTab === 'dronetypes' && <DroneTypesPage />}
         {activeTab === 'invite' && (
           <div className="w-full relative py-20 min-h-[95vh]">
             <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none"></div>

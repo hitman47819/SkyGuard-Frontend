@@ -1,16 +1,5 @@
-// Provide minimal JSX/runtime declarations to satisfy TypeScript in environments
-// where @types/react or react/jsx-runtime types are not installed.
-declare global {
-  namespace JSX {
-    // allow any intrinsic element to avoid JSX.IntrinsicElements missing errors
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
-
 import { useState, useEffect } from 'react';
-import { Shield, Radio, Activity, AlertCircle, LayoutDashboard, Layers, Users, LogOut } from 'lucide-react';
+import { Shield, Radar, Activity, AlertCircle, LayoutDashboard, Layers, Users, LogOut, Cpu, Package, Plane } from 'lucide-react';
 import type { ActiveTab } from '../types';
 
 interface HeaderProps {
@@ -33,7 +22,7 @@ export default function Header({ activeTab, setActiveTab, systemStatus }: Header
         });
         if (res.ok) {
           const data = await res.json();
-          setUser(data);
+          setUser(data?.data ? data.data : data);
         }
       } catch { /* silent */ }
     };
@@ -53,7 +42,7 @@ export default function Header({ activeTab, setActiveTab, systemStatus }: Header
   };
 
   const navItems: { tab: ActiveTab; label: string; icon: any; requireAuth?: boolean; requireRole?: 'super' | 'admin' }[] = [
-    { tab: 'features', label: 'Features', icon: Radio },
+    { tab: 'features', label: 'Features', icon: Radar },
     { tab: 'technology', label: 'Technology', icon: Activity },
     { tab: 'contact', label: 'Contact', icon: AlertCircle },
   ];
@@ -61,7 +50,11 @@ export default function Header({ activeTab, setActiveTab, systemStatus }: Header
   const dashboardNavItems: { tab: ActiveTab; label: string; icon: any; requireRole?: 'super' | 'admin' }[] = [
     { tab: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { tab: 'segments', label: 'Segments', icon: Layers },
-    ...(canAccessUsers ? [{ tab: 'users' as ActiveTab, label: 'Users', icon: Users, requireRole: (isSuper ? 'super' : 'admin') as 'super' | 'admin' }] : []),
+    { tab: 'detections', label: 'Detections', icon: Radar },
+    { tab: 'airesults', label: 'AI Results', icon: Cpu },
+    { tab: 'packs', label: 'Packs', icon: Package },
+    { tab: 'dronetypes', label: 'Drone Types', icon: Plane },
+    ...(canAccessUsers ? [{ tab: 'users' as ActiveTab, label: 'Users', icon: Users }] : []),
   ];
 
   return (
@@ -77,7 +70,7 @@ export default function Header({ activeTab, setActiveTab, systemStatus }: Header
         </button>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-6">
           {/* Public nav */}
           {navItems.map((item) => (
             <button

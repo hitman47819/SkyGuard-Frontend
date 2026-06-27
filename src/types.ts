@@ -1,4 +1,15 @@
-export type ActiveTab = 'features' | 'technology' | 'contact' | 'dashboard' | 'segments' | 'users' | 'invite' | 'not-found';
+export type ActiveTab = 
+  | 'features' 
+  | 'technology' 
+  | 'contact' 
+  | 'login' 
+  | 'dashboard' 
+  | 'segments' 
+  | 'users' 
+  | 'detections'
+  | 'airesults'
+  | 'packs'
+  | 'dronetypes';
 
 export interface DroneTarget {
   id: string;
