@@ -1,8 +1,3 @@
-Here is the updated `UsersPage.tsx`. I have added an **"Invite User"** button in the header and embedded your `InviteUserPage` component into a modal overlay so it matches the existing UI flow (similar to your Edit User modal).
-
-I also made sure to pass the `currentUser.userrole` to `InviteUserPage` and added an `onInviteSent` callback so the modal closes and the users list refreshes automatically when an invitation is successfully sent.
-
-```tsx
 import { useState, useEffect } from 'react';
 import {
   Users, Pencil, Trash2, Shield, User, Eye,
@@ -434,4 +429,3 @@ export default function UsersPage() {
     </div>
   );
 }
-```

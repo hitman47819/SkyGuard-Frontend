@@ -1,10 +1,3 @@
-Here is the fixed `DashboardView` component. 
-
-Just like the previous pages, the analytics API returns a **raw array** (or raw object) instead of being wrapped in `{ data: [...] }`. Because of this, `data.data` was undefined, meaning none of your charts and stats were receiving the information.
-
-I have updated the `fetchDashboard` function to correctly unwrap the raw API responses. I also added a normalization step for `recent` detections to ensure the `id`, `name`, and `detectedAt` fields map correctly regardless of how the backend formats them.
-
-```tsx
 import { useState, useEffect } from 'react';
 import {
   BarChart3, Target, Cpu, TrendingUp, Clock, Activity,
@@ -357,4 +350,3 @@ export default function DashboardView() {
     </div>
   );
 }
-```
