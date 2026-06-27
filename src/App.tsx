@@ -27,7 +27,8 @@ const ROLE_RESTRICTED_TABS: { tab: ActiveTab; allowedRoles: number[] }[] = [
   { tab: 'users', allowedRoles: [1, 2] },
 ];
 
-const AUTO_REDIRECT_PATHS = ['', 'features'];
+// Public paths where auto-redirect to login triggers on load if a valid token exists
+const AUTO_REDIRECT_PATHS = ['', 'features', 'technology', 'contact'];
 
 const validateToken = async (token: string | null): Promise<boolean> => {
   if (!token) return false;
@@ -68,7 +69,7 @@ export default function App() {
   const [systemStatus] = useState<'active' | 'alert' | 'securing'>('active');
   const initialPublicCheckDone = useRef(false);
 
-  // Ref for values accessed inside the hashchange closure to avoid stale closures
+  // Ref to avoid stale closures in the hashchange handler
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -155,12 +156,10 @@ export default function App() {
         rawHash === '#/';
 
       if (isPublic) {
-        // Auto-redirect only on initial load, specific paths, no session
-        if (
-          !initialPublicCheckDone.current &&
-          !sessionValid &&
-          AUTO_REDIRECT_PATHS.includes(path)
-        ) {
+        // On initial page load: if a token exists, validate it.
+        // If valid → auto-redirect to login (staff detected).
+        // This runs exactly once per page load regardless of session state.
+        if (!initialPublicCheckDone.current && AUTO_REDIRECT_PATHS.includes(path)) {
           initialPublicCheckDone.current = true;
           if (token) {
             setIsChecking(true);
@@ -182,13 +181,11 @@ export default function App() {
 
       // ── 4. Protected / role-restricted routes ──
       const isProtected = PROTECTED_TABS.includes(path as ActiveTab);
-      const roleRestriction = ROLE_RESTRICTED_TABS.find(
-        (r) => r.tab === path,
-      );
+      const roleRestriction = ROLE_RESTRICTED_TABS.find((r) => r.tab === path);
 
       if (isProtected || roleRestriction) {
         if (!sessionValid) {
-          // No session — try sending to login if token is structurally valid
+          // No session — if token is structurally valid, send to login
           if (token) {
             setIsChecking(true);
             const valid = await validateToken(token);

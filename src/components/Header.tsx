@@ -124,17 +124,7 @@ export default function Header({
             </span>
           </div>
 
-          {/* Public mode: Login button */}
-          {isPublicMode && (
-            <button
-              onClick={() => (window.location.hash = '#/login')}
-              className="px-5 py-2 font-mono text-xs uppercase tracking-widest font-bold transition-all border rounded-sm cursor-pointer bg-transparent text-brand-cyan border-brand-cyan/40 hover:bg-brand-cyan/10 hover:border-brand-cyan"
-            >
-              Login
-            </button>
-          )}
-
-          {/* Internal mode: User badge + Logout */}
+          {/* Internal mode only: User badge + Logout */}
           {!isPublicMode && user && (
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex items-center gap-2 px-3 py-1 border border-brand-cyan/20 rounded-full bg-brand-cyan/5">
@@ -185,18 +175,6 @@ export default function Header({
               {item.label}
             </button>
           ))}
-
-          {isPublicMode && (
-            <button
-              onClick={() => {
-                window.location.hash = '#/login';
-                setMobileMenuOpen(false);
-              }}
-              className="w-full text-left font-mono text-xs uppercase tracking-widest font-bold px-3 py-2 text-brand-cyan border border-brand-cyan/30 rounded-sm hover:bg-brand-cyan/10 bg-transparent cursor-pointer"
-            >
-              Login
-            </button>
-          )}
 
           {!isPublicMode && user && (
             <button
