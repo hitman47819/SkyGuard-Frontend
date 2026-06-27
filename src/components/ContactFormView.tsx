@@ -1,5 +1,6 @@
-import { useState, FormEvent } from 'react';
-import { Lock, Send, ShieldAlert, Phone, Mail, Globe, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { Lock, Send, Phone, Mail, Globe, CheckCircle2, RefreshCw } from 'lucide-react';
 
 export default function ContactFormView() {
   const [name, setName] = useState('');

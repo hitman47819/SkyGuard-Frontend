@@ -1,5 +1,5 @@
 import { Share2, Mail, Shield } from 'lucide-react';
-import { ActiveTab } from '../types';
+import type { ActiveTab } from '../types';
 
 interface FooterProps {
   setActiveTab: (tab: ActiveTab) => void;

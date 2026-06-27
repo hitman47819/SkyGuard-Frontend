@@ -1,13 +1,8 @@
 import { useState } from "react";
 import { Shield, Lock, Mail, Eye, EyeOff } from "lucide-react";
 
-interface AcceptInvitePageProps {
-  onSuccess: (accessToken?: string, refreshToken?: string) => void;
-}
-
-interface AuthenticationResponse {
-  accessToken?: string | null;
-  refreshToken?: string | null;
+interface LoginViewProps {
+  onLogin: (accessToken?: string, refreshToken?: string) => void;
 }
 
 interface ProblemDetails {
@@ -18,48 +13,33 @@ interface ProblemDetails {
 const getApiErrorMessage = async (response: Response) => {
   try {
     const result = (await response.json()) as ProblemDetails;
-    return result.detail || result.title || "Request failed.";
+    return result.detail || result.title || "Authentication failed.";
   } catch {
-    return "Request failed.";
+    return "Authentication failed.";
   }
 };
 
-const getInvitationTokenFromUrl = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('token') || '';
-};
-
-export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
+export default function LoginView({ onLogin }: LoginViewProps) {
   const [email, setEmail] = useState("");
-  const [invitationToken, setInvitationToken] = useState(() => getInvitationTokenFromUrl());
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setErrorMessage("");
-
-    if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/Authentication/password-setup", {
+      const response = await fetch("/api/Authentication/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
-          invitationToken,
-          newPassword: password,
+          userEmail: email,
+          userPassword: password,
         }),
       });
 
@@ -75,9 +55,9 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
         return;
       }
 
-      onSuccess(result.data.accessToken, result.data.refreshToken || undefined);
+      onLogin(result.data.accessToken, result.data.refreshToken || undefined);
     } catch (error) {
-      console.error("Accept invite failed:", error);
+      console.error("Login failed:", error);
       setErrorMessage("Unable to reach SkyGuard authentication.");
     } finally {
       setIsSubmitting(false);
@@ -96,11 +76,11 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
           </div>
 
           <h1 className="text-3xl font-bold text-center text-white">
-            Accept Invite
+            SkyGuard
           </h1>
 
           <p className="text-center text-slate-400 mt-2 mb-8">
-            Complete your account setup
+            Secure Command Access
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -117,13 +97,12 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  placeholder="admin@skyguard.ai"
                   required
                   className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
             </div>
-
 
             <div>
               <label className="text-sm text-slate-400 block mb-2">
@@ -137,9 +116,8 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create password"
+                  placeholder="Enter password"
                   required
-                  minLength={6}
                   className="w-full pl-11 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
                 />
 
@@ -149,38 +127,6 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
                   className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-400"
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm text-slate-400 block mb-2">
-                Confirm Password
-              </label>
-
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-500" />
-
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
-                  required
-                  minLength={6}
-                  className="w-full pl-11 pr-11 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:border-indigo-500 focus:outline-none"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-400"
-                >
-                  {showConfirmPassword ? (
                     <EyeOff className="w-5 h-5" />
                   ) : (
                     <Eye className="w-5 h-5" />
@@ -200,7 +146,7 @@ export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
               disabled={isSubmitting}
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Setting up..." : "Accept Invite & Create Account"}
+              {isSubmitting ? "Authenticating..." : "Login"}
             </button>
 
           </form>

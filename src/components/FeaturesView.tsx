@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, Play, EyeOff, Search, Network, CheckCircle, ShieldCheck, Cpu, Zap, Radio, CircleAlert } from 'lucide-react';
-import { ActiveTab } from '../types';
+import { ArrowRight, Play, EyeOff, Search, Network, Cpu, Zap } from 'lucide-react';
+import type { ActiveTab } from '../types';
 
 interface FeaturesViewProps {
   onEnterC2: () => void;

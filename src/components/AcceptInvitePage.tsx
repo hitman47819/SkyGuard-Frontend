@@ -5,11 +5,6 @@ interface AcceptInvitePageProps {
   onSuccess: (accessToken?: string, refreshToken?: string) => void;
 }
 
-interface AuthenticationResponse {
-  accessToken?: string | null;
-  refreshToken?: string | null;
-}
-
 interface ProblemDetails {
   title?: string;
   detail?: string;
@@ -31,7 +26,7 @@ const getInvitationTokenFromUrl = () => {
 
 export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
   const [email, setEmail] = useState("");
-  const [invitationToken, setInvitationToken] = useState(() => getInvitationTokenFromUrl());
+  const [invitationToken] = useState(() => getInvitationTokenFromUrl());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");

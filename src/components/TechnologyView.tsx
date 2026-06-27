@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Radio, Eye, Lock, Cable, ArrowUpRight, Cpu } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 interface TechViewProps {
   onEnterC2: () => void;

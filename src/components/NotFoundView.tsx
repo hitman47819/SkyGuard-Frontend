@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, Compass, Terminal, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
-import { ActiveTab } from '../types';
+import { ShieldAlert, Terminal, ArrowLeft, RefreshCw } from 'lucide-react';
+import type { ActiveTab } from '../types';
 
 interface NotFoundViewProps {
   setActiveTab: (tab: ActiveTab) => void;
