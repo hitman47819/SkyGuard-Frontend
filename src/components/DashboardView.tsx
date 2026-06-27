@@ -1,3 +1,10 @@
+Here is the fixed `DashboardView` component. 
+
+Just like the previous pages, the analytics API returns a **raw array** (or raw object) instead of being wrapped in `{ data: [...] }`. Because of this, `data.data` was undefined, meaning none of your charts and stats were receiving the information.
+
+I have updated the `fetchDashboard` function to correctly unwrap the raw API responses. I also added a normalization step for `recent` detections to ensure the `id`, `name`, and `detectedAt` fields map correctly regardless of how the backend formats them.
+
+```tsx
 import { useState, useEffect } from 'react';
 import {
   BarChart3, Target, Cpu, TrendingUp, Clock, Activity,
@@ -7,7 +14,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend
 } from 'recharts';
-import type { DashboardStats, TimelinePoint, DroneTypeDistribution, HourlyStat, RecentDetection, ApiResponse } from '../types';
+import type { DashboardStats, TimelinePoint, DroneTypeDistribution, HourlyStat, RecentDetection } from '../types';
 
 const COLORS = ['#6366F1', '#A855F7', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#8B5CF6'];
 
@@ -37,8 +44,9 @@ export default function DashboardView() {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
-        const data = await res.json();
-        setUser(data);
+        const raw = await res.json();
+        // Handle both raw object and { data: {...} } response structures
+        setUser(raw.data ? raw.data : raw);
       }
     } catch { /* silent */ }
   };
@@ -60,24 +68,41 @@ export default function DashboardView() {
       ]);
 
       if (statsRes.ok) {
-        const data: ApiResponse<DashboardStats> = await statsRes.json();
-        setStats(data.data);
+        const raw = await statsRes.json();
+        setStats(raw.data ? raw.data : raw);
       }
+      
       if (timelineRes.ok) {
-        const data: ApiResponse<TimelinePoint[]> = await timelineRes.json();
-        setTimeline(data.data || []);
+        const raw = await timelineRes.json();
+        const items = Array.isArray(raw) ? raw : (raw.data ?? []);
+        setTimeline(items);
       }
+      
       if (droneRes.ok) {
-        const data: ApiResponse<DroneTypeDistribution[]> = await droneRes.json();
-        setDroneTypes(data.data || []);
+        const raw = await droneRes.json();
+        const items = Array.isArray(raw) ? raw : (raw.data ?? []);
+        setDroneTypes(items);
       }
+      
       if (hourlyRes.ok) {
-        const data: ApiResponse<HourlyStat[]> = await hourlyRes.json();
-        setHourly(data.data || []);
+        const raw = await hourlyRes.json();
+        const items = Array.isArray(raw) ? raw : (raw.data ?? []);
+        setHourly(items);
       }
+      
       if (recentRes.ok) {
-        const data: ApiResponse<RecentDetection[]> = await recentRes.json();
-        setRecent(data.data || []);
+        const raw = await recentRes.json();
+        const items = Array.isArray(raw) ? raw : (raw.data ?? []);
+        
+        // Normalize fields to ensure UI components get what they expect
+        const normalized = items.map((d: any) => ({
+          ...d,
+          id: d.id ?? d.detectionId,
+          name: d.name ?? d.detectionName ?? 'Unknown',
+          detectedAt: d.detectedAt ?? d.createdAt ?? new Date().toISOString(),
+        }));
+        
+        setRecent(normalized);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard data');
@@ -332,3 +357,4 @@ export default function DashboardView() {
     </div>
   );
 }
+```

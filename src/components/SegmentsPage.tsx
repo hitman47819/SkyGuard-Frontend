@@ -43,8 +43,10 @@ export default function SegmentsPage() {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
-        const data = await res.json();
-        setUser(data);
+        const raw = await res.json();
+        // Handle both raw object and { data: {...} } response structures
+        const userData = raw.data ? raw.data : raw;
+        setUser(userData);
       }
     } catch { /* silent */ }
   };
@@ -57,10 +59,19 @@ export default function SegmentsPage() {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
-      const data: ApiResponse<Segment[]> = await res.json();
-      const items = data.data || [];
-      setSegments(items);
-      setHasMore(items.length === 20);
+      
+      const raw = await res.json();
+      // API returns a raw array, not { data: [...] }
+      const items = Array.isArray(raw) ? raw : (raw.data ?? []);
+      
+      // Normalize segmentID -> id if the type still uses `id`
+      const normalized = items.map((s: any) => ({
+        ...s,
+        id: s.segmentID ?? s.id,
+      }));
+
+      setSegments(normalized);
+      setHasMore(normalized.length === 20);
     } catch (err: any) {
       setError(err.message || 'Failed to load segments');
     } finally {

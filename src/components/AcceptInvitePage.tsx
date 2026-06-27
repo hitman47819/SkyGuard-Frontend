@@ -20,13 +20,28 @@ const getApiErrorMessage = async (response: Response) => {
 };
 
 const getInvitationTokenFromUrl = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('token') || '';
+  // Check standard query params first
+  const standardParams = new URLSearchParams(window.location.search);
+  const tokenFromSearch = standardParams.get('token');
+  if (tokenFromSearch) return tokenFromSearch;
+
+  // Fallback for HashRouter: extract query string from the hash
+  // URL looks like: https://domain.com/#/accept-invite?token=123
+  const hash = window.location.hash;
+  const queryIndex = hash.indexOf('?');
+  
+  if (queryIndex !== -1) {
+    const queryString = hash.substring(queryIndex + 1);
+    const hashParams = new URLSearchParams(queryString);
+    return hashParams.get('token') || '';
+  }
+  
+  return '';
 };
 
 export default function AcceptInvitePage({ onSuccess }: AcceptInvitePageProps) {
   const [email, setEmail] = useState("");
-  const [invitationToken] = useState(() => getInvitationTokenFromUrl());
+  const [invitationToken, setInvitationToken] = useState(() => getInvitationTokenFromUrl());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");

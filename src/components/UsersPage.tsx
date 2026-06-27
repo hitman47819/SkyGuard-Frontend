@@ -1,10 +1,16 @@
+Here is the updated `UsersPage.tsx`. I have added an **"Invite User"** button in the header and embedded your `InviteUserPage` component into a modal overlay so it matches the existing UI flow (similar to your Edit User modal).
+
+I also made sure to pass the `currentUser.userrole` to `InviteUserPage` and added an `onInviteSent` callback so the modal closes and the users list refreshes automatically when an invitation is successfully sent.
+
+```tsx
 import { useState, useEffect } from 'react';
 import {
   Users, Pencil, Trash2, Shield, User, Eye,
   AlertCircle, CheckCircle, RefreshCw, X, ChevronLeft, ChevronRight,
-  Crown
+  Crown, UserPlus
 } from 'lucide-react';
 import type { User as UserType, ApiResponse, UpdateUserRequest } from '../types';
+import InviteUserPage from './InviteUserPage'; // Adjust path if needed
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
@@ -35,6 +41,9 @@ export default function UsersPage() {
   const [editForm, setEditForm] = useState<UpdateUserRequest>({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Invite modal
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
   const isSuper = currentUser?.userrole === 1;
   const isAdmin = currentUser?.userrole === 2;
 
@@ -53,39 +62,36 @@ export default function UsersPage() {
   };
 
   const fetchUsers = async (pageNum: number = 1) => {
-  setLoading(true);
-  setError('');
-  try {
-    const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error(`Error ${res.status}`);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
 
-    const raw = await res.json();
-    // API returns a raw array, not { data: [...] }
-    const items: UserType[] = Array.isArray(raw) ? raw : (raw.data || []);
+      const raw = await res.json();
+      const items: UserType[] = Array.isArray(raw) ? raw : (raw.data || []);
 
-    // Normalize userID -> id if your type still uses `id`
-    const normalized = items.map((u: any) => ({
-      ...u,
-      id: u.userID ?? u.id,
-    }));
+      const normalized = items.map((u: any) => ({
+        ...u,
+        id: u.userID ?? u.id,
+      }));
 
-    setUsers(normalized);
-    setHasMore(normalized.length === 20);
-  } catch (err: any) {
-    setError(err.message || 'Failed to load users');
-  } finally {
-    setLoading(false);
-  }
-};
+      setUsers(normalized);
+      setHasMore(normalized.length === 20);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchCurrentUser();
     fetchUsers(page);
   }, [page]);
 
-  // Filter users based on role
   const visibleUsers = users.filter(u => {
     if (isSuper) return u.userrole === 2; // Super sees only Admins
     if (isAdmin) return u.userrole === 3; // Admin sees only Analytics users
@@ -174,6 +180,15 @@ export default function UsersPage() {
                 <RefreshCw className="w-3.5 h-3.5" />
                 Refresh
               </button>
+              {(isSuper || isAdmin) && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light transition-all font-mono text-xs uppercase tracking-wider font-bold rounded-sm"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Invite User
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -194,6 +209,7 @@ export default function UsersPage() {
 
         {/* Users Table */}
         <div className="bg-brand-slate/40 border border-white/5 rounded-sm overflow-hidden">
+          {/* ... Table content remains exactly the same ... */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -393,6 +409,29 @@ export default function UsersPage() {
           </div>
         </div>
       )}
+
+      {/* Invite User Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-2xl my-8 relative">
+            <button
+              onClick={() => setShowInviteModal(false)}
+              className="absolute top-4 right-4 z-50 p-2 text-slate-400 hover:text-white bg-slate-800/50 rounded-full transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <InviteUserPage 
+              userRole={currentUser?.userrole || 3} 
+              onInviteSent={() => {
+                setShowInviteModal(false);
+                fetchUsers(page);
+              }} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+```
