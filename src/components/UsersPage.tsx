@@ -53,23 +53,32 @@ export default function UsersPage() {
   };
 
   const fetchUsers = async (pageNum: number = 1) => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      const data: ApiResponse<UserType[]> = await res.json();
-      const items = data.data || [];
-      setUsers(items);
-      setHasMore(items.length === 20);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  setError('');
+  try {
+    const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const raw = await res.json();
+    // API returns a raw array, not { data: [...] }
+    const items: UserType[] = Array.isArray(raw) ? raw : (raw.data || []);
+
+    // Normalize userID -> id if your type still uses `id`
+    const normalized = items.map((u: any) => ({
+      ...u,
+      id: u.userID ?? u.id,
+    }));
+
+    setUsers(normalized);
+    setHasMore(normalized.length === 20);
+  } catch (err: any) {
+    setError(err.message || 'Failed to load users');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchCurrentUser();
