@@ -134,9 +134,17 @@ export default function DashboardView() {
         setTimeline(safeArray(raw));
       }
 
+      // ---------- Drone Types (Pie) ----------
       if (droneRes.ok) {
         const raw = await droneRes.json();
-        setDroneTypes(safeArray(raw));
+        const rawArray = safeArray(raw);
+        const normalised = rawArray.map((item: any) => ({
+          droneTypeName: item.droneTypeName ?? item.name ?? item.droneType ?? 'Unknown',
+          count: item.count ?? item.value ?? 0,
+        }));
+        setDroneTypes(normalised);
+      } else {
+        console.warn('Failed to load top-drone-types:', droneRes.status);
       }
 
       if (hourlyRes.ok) {
@@ -156,9 +164,17 @@ export default function DashboardView() {
         setRecent(normalized);
       }
 
+      // ---------- Detection Distribution ----------
       if (distRes.ok) {
         const raw = await distRes.json();
-        setDetectionDist(safeArray(raw));
+        const rawArray = safeArray(raw);
+        const normalised = rawArray.map((item: any) => ({
+          name: item.name ?? item.detectionName ?? item.detection ?? 'Unknown',
+          count: item.count ?? item.value ?? 0,
+        }));
+        setDetectionDist(normalised);
+      } else {
+        console.warn('Failed to load detection-distribution:', distRes.status);
       }
 
       if (confRes.ok) {
@@ -166,9 +182,17 @@ export default function DashboardView() {
         setConfidence(safeArray(raw));
       }
 
+      // ---------- Confidence by Drone Type ----------
       if (confByDroneRes.ok) {
         const raw = await confByDroneRes.json();
-        setConfidenceByDrone(safeArray(raw));
+        const rawArray = safeArray(raw);
+        const normalised = rawArray.map((item: any) => ({
+          droneTypeName: item.droneTypeName ?? item.name ?? item.type ?? 'Unknown',
+          confidence: item.confidence ?? item.avgConfidence ?? item.value ?? 0,
+        }));
+        setConfidenceByDrone(normalised);
+      } else {
+        console.warn('Failed to load confidence-by-drone:', confByDroneRes.status);
       }
 
       if (dailyRes.ok) {
@@ -176,14 +200,24 @@ export default function DashboardView() {
         setDailyTypes(normalizeDailyTypes(safeArray(raw)));
       }
 
+      // ---------- Detection Trend ----------
       if (trendRes.ok) {
         const raw = await trendRes.json();
-        setTrend(safeArray(raw));
+        const rawArray = safeArray(raw);
+        const normalised = rawArray.map((item: any) => ({
+          date: item.date ?? item.label ?? item.x ?? '',
+          value: item.value ?? item.count ?? item.y ?? 0,
+        }));
+        setTrend(normalised);
+      } else {
+        console.warn('Failed to load trend:', trendRes.status);
       }
 
       if (lastSeenRes.ok) {
         const raw = await lastSeenRes.json();
         setLastSeen(safeArray(raw));
+      } else {
+        console.warn('Failed to load last-seen:', lastSeenRes.status);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard data');
@@ -204,12 +238,10 @@ export default function DashboardView() {
     { label: 'Avg Confidence', value: `${(stats?.averageConfidence ?? 0).toFixed(1)}%`, icon: TrendingUp, color: '#F59E0B' },
   ];
 
-  // Dynamic keys for stacked daily chart (exclude non-numeric / identifier fields)
   const dailyTypeKeys = dailyTypes.length > 0
     ? Object.keys(dailyTypes[0]).filter(k => k !== 'date' && k !== 'id' && typeof dailyTypes[0][k] === 'number')
     : [];
 
-  // ─── Chart Section Wrapper ───
   const ChartCard = ({ title, icon: Icon, iconColor, badge, children, className = '' }: {
     title: string; icon: any; iconColor: string; badge?: string; children: React.ReactNode; className?: string;
   }) => (
@@ -362,7 +394,7 @@ export default function DashboardView() {
           </ChartCard>
         </div>
 
-        {/* Row 4: Daily Detection Types (stacked) + Last Seen */}
+        {/* Row 4: Daily Detection Types + Last Seen */}
         <div className="grid lg:grid-cols-3 gap-6">
           <ChartCard title="Daily Detection Types" icon={Activity} iconColor="#3B82F6" badge="30 Days" className="lg:col-span-2">
             {dailyTypes.length > 0 && dailyTypeKeys.length > 0 ? (
