@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   BarChart3, Target, Cpu, TrendingUp, Clock, Activity,
-  AlertCircle, RefreshCw, Zap, Eye
+  AlertCircle, RefreshCw, Zap, Eye, TrendingDown, Minus
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -80,7 +80,7 @@ export default function DashboardView() {
   const [confidence, setConfidence] = useState<any[]>([]);
   const [confidenceByDrone, setConfidenceByDrone] = useState<any[]>([]);
   const [dailyTypes, setDailyTypes] = useState<any[]>([]);
-  const [trend, setTrend] = useState<any[]>([]);
+  const [trend, setTrend] = useState<any>(null);   // object, not array
   const [lastSeen, setLastSeen] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -139,8 +139,8 @@ export default function DashboardView() {
         const raw = await droneRes.json();
         const rawArray = safeArray(raw);
         const normalised = rawArray.map((item: any) => ({
-          droneTypeName: item.droneTypeName ?? item.name ?? item.droneType ?? 'Unknown',
-          count: item.count ?? item.value ?? 0,
+          droneTypeName: item.droneTypeName ?? 'Unknown',
+          count: item.totalDetections ?? 0,
         }));
         setDroneTypes(normalised);
       } else {
@@ -187,8 +187,8 @@ export default function DashboardView() {
         const raw = await confByDroneRes.json();
         const rawArray = safeArray(raw);
         const normalised = rawArray.map((item: any) => ({
-          droneTypeName: item.droneTypeName ?? item.name ?? item.type ?? 'Unknown',
-          confidence: item.confidence ?? item.avgConfidence ?? item.value ?? 0,
+          droneTypeName: item.droneTypeName ?? 'Unknown',
+          confidence: item.averageConfidence ?? 0,
         }));
         setConfidenceByDrone(normalised);
       } else {
@@ -203,12 +203,7 @@ export default function DashboardView() {
       // ---------- Detection Trend ----------
       if (trendRes.ok) {
         const raw = await trendRes.json();
-        const rawArray = safeArray(raw);
-        const normalised = rawArray.map((item: any) => ({
-          date: item.date ?? item.label ?? item.x ?? '',
-          value: item.value ?? item.count ?? item.y ?? 0,
-        }));
-        setTrend(normalised);
+        setTrend(raw);   // store the object directly
       } else {
         console.warn('Failed to load trend:', trendRes.status);
       }
@@ -260,6 +255,30 @@ export default function DashboardView() {
   const EmptyChart = ({ msg = 'No data available' }: { msg?: string }) => (
     <div className="flex items-center justify-center h-[200px] text-xs text-slate-600 font-mono">{msg}</div>
   );
+
+  // Trend indicator helper
+  const TrendIndicator = ({ data }: { data: any }) => {
+    if (!data) return <EmptyChart />;
+    const isUp = data.direction === 'up';
+    const isDown = data.direction === 'down';
+    const Icon = isUp ? TrendingUp : isDown ? TrendingDown : Minus;
+    const color = isUp ? '#10B981' : isDown ? '#EF4444' : '#6B7280';
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4">
+        <Icon className="w-12 h-12" style={{ color }} />
+        <div className="text-center">
+          <p className="text-3xl font-bold text-white">{data.currentPeriodCount}</p>
+          <p className="text-xs text-on-surface-variant">Current Period</p>
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-mono" style={{ color }}>
+            {isUp ? '+' : ''}{data.percentageChange}%
+          </p>
+          <p className="text-[10px] text-on-surface-variant uppercase">vs previous</p>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -462,18 +481,11 @@ export default function DashboardView() {
             ) : <EmptyChart />}
           </ChartCard>
 
+          {/* Detection Trend – now a KPI card because the API returns a summary object */}
           <ChartCard title="Detection Trend" icon={TrendingUp} iconColor="#6366F1">
-            {trend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                  <XAxis dataKey="date" tick={axisTick} tickFormatter={(v) => String(v).slice(5)} />
-                  <YAxis tick={axisTick} />
-                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#6366F1' }} />
-                  <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} dot={{ r: 3, fill: '#6366F1' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : <EmptyChart />}
+            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TrendIndicator data={trend} />
+            </div>
           </ChartCard>
         </div>
 
