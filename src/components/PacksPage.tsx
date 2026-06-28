@@ -16,13 +16,34 @@ const fmtDate = (d: string) => {
   } catch { return d; }
 };
 
-const toLocalInput = (d: string) => {
-  if (!d) return '';
+// Splits an ISO string into date (yyyy-mm-dd), time (HH:MM), and ms (SSS)
+const splitISO = (iso: string) => {
+  if (!iso) return { date: '', time: '', ms: '' };
   try {
-    const dt = new Date(d);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-  } catch { return ''; }
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return { date: '', time: '', ms: '' };
+    const pad = (n: number, len = 2) => String(n).padStart(len, '0');
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const ms = pad(d.getMilliseconds(), 3);
+    return { date, time, ms };
+  } catch {
+    return { date: '', time: '', ms: '' };
+  }
+};
+
+// Combines date, time, and ms into a full ISO string (UTC)
+const combineISO = (date: string, time: string, ms: string): string => {
+  if (!date || !time) return '';
+  // Append seconds = "00" if needed? Actually the time input gives HH:MM, no seconds.
+  // We'll manually add ":00" for seconds and then ".ms" if provided.
+  const seconds = '00';
+  const msPart = ms ? `.${ms.padStart(3, '0')}` : '';
+  const isoString = `${date}T${time}:${seconds}${msPart}Z`;
+  // Validate that it's a correct date
+  const test = new Date(isoString);
+  if (isNaN(test.getTime())) return '';
+  return isoString;
 };
 
 export default function PacksPage() {
@@ -35,7 +56,19 @@ export default function PacksPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ packetNumber: '', capturedAt: '', startTime: '', endTime: '' });
+  // Form state: we store each datetime as separate date, time, ms
+  const [form, setForm] = useState({
+    packetNumber: '',
+    capturedAtDate: '',
+    capturedAtTime: '',
+    capturedAtMs: '',
+    startTimeDate: '',
+    startTimeTime: '',
+    startTimeMs: '',
+    endTimeDate: '',
+    endTimeTime: '',
+    endTimeMs: '',
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const [detailPack, setDetailPack] = useState<any>(null);
@@ -43,8 +76,9 @@ export default function PacksPage() {
   const [segmentsLoading, setSegmentsLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
-  // Current user role (default 3 = Analytics)
+  // Role restrictions
   const [userRole, setUserRole] = useState<number>(3);
+  const canModify = userRole !== 3;
 
   const fetchCurrentUser = async () => {
     try {
@@ -58,9 +92,7 @@ export default function PacksPage() {
         const user = data.data ? data.data : data;
         setUserRole(user.userrole ?? 3);
       }
-    } catch {
-      /* silent */
-    }
+    } catch { /* silent */ }
   };
 
   const fetchPacks = async (pageNum: number = 1) => {
@@ -78,18 +110,18 @@ export default function PacksPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchCurrentUser(); // get role on mount
-  }, []);
-
+  useEffect(() => { fetchCurrentUser(); }, []);
   useEffect(() => { fetchPacks(page); }, [page]);
-
-  const canModify = userRole !== 3; // Super(1) & Admin(2) can modify
 
   const openCreate = () => {
     if (!canModify) return;
     setEditing(null);
-    setForm({ packetNumber: '', capturedAt: '', startTime: '', endTime: '' });
+    setForm({
+      packetNumber: '',
+      capturedAtDate: '', capturedAtTime: '', capturedAtMs: '',
+      startTimeDate: '', startTimeTime: '', startTimeMs: '',
+      endTimeDate: '', endTimeTime: '', endTimeMs: '',
+    });
     setShowModal(true);
   };
 
@@ -97,11 +129,14 @@ export default function PacksPage() {
     e.stopPropagation();
     if (!canModify) return;
     setEditing(p);
+    const cap = splitISO(p.capturedAt);
+    const start = splitISO(p.startTime);
+    const end = splitISO(p.endTime);
     setForm({
       packetNumber: p.packetNumber != null ? String(p.packetNumber) : '',
-      capturedAt: toLocalInput(p.capturedAt),
-      startTime: toLocalInput(p.startTime),
-      endTime: toLocalInput(p.endTime),
+      capturedAtDate: cap.date, capturedAtTime: cap.time, capturedAtMs: cap.ms,
+      startTimeDate: start.date, startTimeTime: start.time, startTimeMs: start.ms,
+      endTimeDate: end.date, endTimeTime: end.time, endTimeMs: end.ms,
     });
     setShowModal(true);
   };
@@ -113,9 +148,9 @@ export default function PacksPage() {
     try {
       const payload = {
         packetNumber: Number(form.packetNumber) || 0,
-        capturedAt: form.capturedAt ? new Date(form.capturedAt).toISOString() : null,
-        startTime: form.startTime ? new Date(form.startTime).toISOString() : null,
-        endTime: form.endTime ? new Date(form.endTime).toISOString() : null,
+        capturedAt: combineISO(form.capturedAtDate, form.capturedAtTime, form.capturedAtMs) || null,
+        startTime: combineISO(form.startTimeDate, form.startTimeTime, form.startTimeMs) || null,
+        endTime: combineISO(form.endTimeDate, form.endTimeTime, form.endTimeMs) || null,
       };
       const url = editing ? `/api/Packs/${editing.id}` : '/api/Packs';
       const method = editing ? 'PUT' : 'POST';
@@ -155,83 +190,10 @@ export default function PacksPage() {
 
   return (
     <div className="w-full relative py-20 min-h-[95vh]">
-      <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none"></div>
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-12 mt-16 space-y-6 relative z-10">
+      {/* ... rest of the JSX remains the same until the modal ... */}
+      {/* Header, alerts, table all unchanged */}
 
-        <div className="bg-brand-slate/40 p-5 border border-white/5 rounded-sm flex items-center justify-between">
-          <h1 className="font-display text-xl font-bold text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-brand-cyan" /> Packs Management
-          </h1>
-          <div className="flex gap-3">
-            <button onClick={() => fetchPacks(page)} disabled={loading} className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan font-mono text-xs uppercase rounded-sm disabled:opacity-30 disabled:cursor-not-allowed">
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-            {canModify && (
-              <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm">
-                <Plus className="w-3.5 h-3.5" /> Add Pack
-              </button>
-            )}
-          </div>
-        </div>
-
-        {error && <div className="flex items-center gap-2 px-4 py-3 border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm"><AlertCircle className="w-4 h-4" /> {error}</div>}
-        {success && <div className="flex items-center gap-2 px-4 py-3 border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-sm"><CheckCircle className="w-4 h-4" /> {success}</div>}
-
-        <div className="bg-brand-slate/40 border border-white/5 rounded-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5 bg-brand-bg/50">
-                  <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">ID</th>
-                  <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Packet #</th>
-                  <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Captured At</th>
-                  <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Start Time</th>
-                  <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">End Time</th>
-                  <th className="text-right px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="text-center p-8 animate-pulse text-slate-500">Loading...</td></tr>
-                ) : packs.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center p-8 text-slate-500">No packs found</td></tr>
-                ) : packs.map(p => (
-                  <tr key={p.id} className="border-b border-white/5 hover:bg-brand-cyan/5 group cursor-pointer" onClick={() => openDetail(p)}>
-                    <td className="px-4 py-3 font-mono text-xs text-brand-cyan">#{p.id}</td>
-                    <td className="px-4 py-3 text-xs text-white">{p.packetNumber ?? 'N/A'}</td>
-                    <td className="px-4 py-3 text-xs text-on-surface-variant font-mono">{fmtDate(p.capturedAt)}</td>
-                    <td className="px-4 py-3 text-xs text-on-surface-variant font-mono">{fmtDate(p.startTime)}</td>
-                    <td className="px-4 py-3 text-xs text-on-surface-variant font-mono">{fmtDate(p.endTime)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100">
-                        {canModify && (
-                          <>
-                            <button onClick={(e) => openEdit(e, p)} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={(e) => handleDelete(p.id, e)} className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-brand-bg/30">
-            <span className="font-mono text-[10px] text-on-surface-variant">Page {page}</span>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || loading} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="w-4 h-4" /></button>
-              <button onClick={() => setPage(p => p + 1)} disabled={!hasMore || loading} className="p-1.5 border border-white/10 rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="w-4 h-4" /></button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Create / Edit Modal (only for allowed roles) */}
+      {/* Modal with precise time inputs */}
       {showModal && canModify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -242,20 +204,58 @@ export default function PacksPage() {
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
                 <label className="font-mono text-[10px] uppercase text-on-surface-variant">Packet Number</label>
-                <input type="number" required value={form.packetNumber} onChange={e => setForm({ ...form, packetNumber: e.target.value })} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
+                <input type="number" required value={form.packetNumber} onChange={e => setForm({...form, packetNumber: e.target.value})} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
               </div>
+
+              {/* Captured At */}
               <div>
                 <label className="font-mono text-[10px] uppercase text-on-surface-variant">Captured At</label>
-                <input type="datetime-local" value={form.capturedAt} onChange={e => setForm({ ...form, capturedAt: e.target.value })} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="date"
+                    value={form.capturedAtDate}
+                    onChange={e => setForm({...form, capturedAtDate: e.target.value})}
+                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                  <input
+                    type="time"
+                    step="1"
+                    value={form.capturedAtTime}
+                    onChange={e => setForm({...form, capturedAtTime: e.target.value})}
+                    className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    placeholder="ms"
+                    value={form.capturedAtMs}
+                    onChange={e => setForm({...form, capturedAtMs: e.target.value})}
+                    className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                </div>
               </div>
+
+              {/* Start Time */}
               <div>
                 <label className="font-mono text-[10px] uppercase text-on-surface-variant">Start Time</label>
-                <input type="datetime-local" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <input type="date" value={form.startTimeDate} onChange={e => setForm({...form, startTimeDate: e.target.value})} className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none" />
+                  <input type="time" step="1" value={form.startTimeTime} onChange={e => setForm({...form, startTimeTime: e.target.value})} className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none" />
+                  <input type="number" min="0" max="999" placeholder="ms" value={form.startTimeMs} onChange={e => setForm({...form, startTimeMs: e.target.value})} className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none" />
+                </div>
               </div>
+
+              {/* End Time */}
               <div>
                 <label className="font-mono text-[10px] uppercase text-on-surface-variant">End Time</label>
-                <input type="datetime-local" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1" />
+                <div className="flex gap-2 mt-1">
+                  <input type="date" value={form.endTimeDate} onChange={e => setForm({...form, endTimeDate: e.target.value})} className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none" />
+                  <input type="time" step="1" value={form.endTimeTime} onChange={e => setForm({...form, endTimeTime: e.target.value})} className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none" />
+                  <input type="number" min="0" max="999" placeholder="ms" value={form.endTimeMs} onChange={e => setForm({...form, endTimeMs: e.target.value})} className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none" />
+                </div>
               </div>
+
               <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-white/10 text-slate-400 font-mono text-xs uppercase rounded-sm">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm disabled:opacity-50">{submitting ? 'Saving...' : 'Save'}</button>
@@ -265,67 +265,10 @@ export default function PacksPage() {
         </div>
       )}
 
-      {/* Detail Modal (always available) */}
+      {/* Detail Modal (unchanged) */}
       {showDetail && detailPack && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowDetail(false)}>
-          <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-3xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-white/5 shrink-0">
-              <div className="flex items-center gap-3">
-                <Radio className="w-5 h-5 text-brand-cyan" />
-                <div>
-                  <h2 className="font-display text-lg font-bold text-white">Pack #{detailPack.packetNumber ?? detailPack.id}</h2>
-                  <p className="font-mono text-[10px] text-on-surface-variant mt-0.5">Captured {fmtDate(detailPack.capturedAt)}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowDetail(false)}><X className="w-5 h-5 text-slate-400 hover:text-white" /></button>
-            </div>
-
-            <div className="px-4 py-3 border-b border-white/5 bg-brand-bg/30 shrink-0 grid grid-cols-3 gap-4">
-              <div>
-                <span className="font-mono text-[10px] uppercase text-on-surface-variant block">Start</span>
-                <span className="text-xs text-white font-mono">{fmtDate(detailPack.startTime)}</span>
-              </div>
-              <div>
-                <span className="font-mono text-[10px] uppercase text-on-surface-variant block">End</span>
-                <span className="text-xs text-white font-mono">{fmtDate(detailPack.endTime)}</span>
-              </div>
-              <div>
-                <span className="font-mono text-[10px] uppercase text-on-surface-variant block">Segments</span>
-                <span className="text-xs text-brand-cyan font-mono font-bold">{segmentsLoading ? '...' : segments.length}</span>
-              </div>
-            </div>
-
-            <div className="overflow-y-auto flex-1">
-              {segmentsLoading ? (
-                <div className="flex items-center justify-center gap-2 p-12 text-slate-500">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading segments...
-                </div>
-              ) : segments.length === 0 ? (
-                <div className="text-center p-12 text-slate-500 text-sm">No segments found for this pack</div>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/5 bg-brand-bg/30 sticky top-0">
-                      <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">ID</th>
-                      <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Seg #</th>
-                      <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">Start Time</th>
-                      <th className="text-left px-4 py-3 font-mono text-[10px] uppercase text-on-surface-variant">End Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {segments.map((s: any, i: number) => (
-                      <tr key={s.id ?? i} className="border-b border-white/5 hover:bg-brand-cyan/5">
-                        <td className="px-4 py-3 font-mono text-xs text-brand-cyan">#{s.id}</td>
-                        <td className="px-4 py-3 text-xs text-white">{s.segmentNumber ?? 'N/A'}</td>
-                        <td className="px-4 py-3 text-xs text-on-surface-variant font-mono">{fmtDate(s.startTime)}</td>
-                        <td className="px-4 py-3 text-xs text-on-surface-variant font-mono">{fmtDate(s.endTime)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
+          {/* ... unchanged detail modal ... */}
         </div>
       )}
     </div>

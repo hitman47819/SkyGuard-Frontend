@@ -3,7 +3,7 @@ import {
   Layers, Plus, Pencil, Trash2, AlertCircle, CheckCircle,
   RefreshCw, X, ChevronLeft, ChevronRight, Package
 } from 'lucide-react';
-import type { Segment, SegmentCreateDto, SegmentUpdateDto, ApiResponse, User } from '../types';
+import type { Segment, SegmentCreateDto, SegmentUpdateDto, User } from '../types';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
@@ -12,6 +12,54 @@ const getAuthHeaders = () => {
     Authorization: `Bearer ${token}`,
   };
 };
+
+// --- Helpers for millisecond precision ---
+
+/**
+ * Splits an ISO string into { date: 'yyyy-mm-dd', time: 'HH:MM', ms: 'SSS' }
+ * Milliseconds are optional – returns '' if not present.
+ */
+const splitISO = (iso: string) => {
+  if (!iso) return { date: '', time: '', ms: '' };
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return { date: '', time: '', ms: '' };
+    const pad = (n: number, len = 2) => String(n).padStart(len, '0');
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const ms = d.getMilliseconds() === 0 ? '' : pad(d.getMilliseconds(), 3);
+    return { date, time, ms };
+  } catch {
+    return { date: '', time: '', ms: '' };
+  }
+};
+
+/**
+ * Combines date, time, and optional ms into a full ISO-8601 string (UTC).
+ * Seconds are set to "00" unless the browser provides them via step="1".
+ * Actually the time input with step="1" gives HH:MM:SS – so we'll use seconds from there.
+ * We'll slightly adjust: the time input will now store HH:MM:SS (from a time input with step="1").
+ */
+const combineISO = (date: string, time: string, ms: string): string => {
+  if (!date || !time) return '';
+  // time format can be HH:MM or HH:MM:SS – we'll parse accordingly
+  const parts = time.split(':');
+  const hours = parts[0]?.padStart(2, '0') ?? '00';
+  const minutes = parts[1]?.padStart(2, '0') ?? '00';
+  const seconds = parts[2]?.padStart(2, '0') ?? '00';
+  const msPart = ms ? `.${ms.padStart(3, '0')}` : '';
+  const isoString = `${date}T${hours}:${minutes}:${seconds}${msPart}Z`;
+  const test = new Date(isoString);
+  if (isNaN(test.getTime())) return '';
+  return isoString;
+};
+
+// --- Component ---
+
+interface SegmentResponse {
+  responses: Segment[];
+  hasnextpage: boolean;
+}
 
 export default function SegmentsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -25,17 +73,20 @@ export default function SegmentsPage() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
-  const [formData, setFormData] = useState<SegmentCreateDto>({
+
+  // Precise form: we store date, time (HH:MM or HH:MM:SS), and ms separately
+  const [formData, setFormData] = useState({
     segmentNumber: 1,
     packetId: 1,
-    startTime: '',
-    endTime: '',
+    startTimeDate: '',
+    startTimeTime: '',
+    startTimeMs: '',
+    endTimeDate: '',
+    endTimeTime: '',
+    endTimeMs: '',
   });
   const [submitting, setSubmitting] = useState(false);
-interface SegmentResponse {
-    responses: Segment[];
-    hasnextpage: boolean;
-}
+
   const canEdit = user ? user.userrole === 1 || user.userrole === 2 : false;
 
   const fetchUser = async () => {
@@ -47,7 +98,6 @@ interface SegmentResponse {
       });
       if (res.ok) {
         const raw = await res.json();
-        // Handle both raw object and { data: {...} } response structures
         const userData = raw.data ? raw.data : raw;
         setUser(userData);
       }
@@ -62,13 +112,12 @@ interface SegmentResponse {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
-      
 
-     const result: SegmentResponse = await res.json();
+      const result: SegmentResponse = await res.json();
 
-      const normalized = (result.responses ?? []).map(s => ({
-          ...s,
-          id: s.segmentID ?? s.id,
+      const normalized = (result.responses ?? []).map((s: any) => ({
+        ...s,
+        id: s.segmentID ?? s.id,
       }));
       setSegments(normalized);
       setHasMore(result.hasnextpage);
@@ -86,22 +135,38 @@ interface SegmentResponse {
 
   const openCreate = () => {
     setEditingSegment(null);
+    const now = new Date();
+    const later = new Date(now.getTime() + 3600000);
+    const nowSplit = splitISO(now.toISOString());
+    const laterSplit = splitISO(later.toISOString());
+
     setFormData({
       segmentNumber: 1,
       packetId: 1,
-      startTime: new Date().toISOString().slice(0, 16),
-      endTime: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+      startTimeDate: nowSplit.date,
+      startTimeTime: nowSplit.time,
+      startTimeMs: nowSplit.ms,
+      endTimeDate: laterSplit.date,
+      endTimeTime: laterSplit.time,
+      endTimeMs: laterSplit.ms,
     });
     setShowModal(true);
   };
 
   const openEdit = (segment: Segment) => {
     setEditingSegment(segment);
+    const startSplit = splitISO(segment.startTime);
+    const endSplit = splitISO(segment.endTime);
+
     setFormData({
       segmentNumber: segment.segmentNumber,
       packetId: segment.packetId,
-      startTime: segment.startTime.slice(0, 16),
-      endTime: segment.endTime.slice(0, 16),
+      startTimeDate: startSplit.date,
+      startTimeTime: startSplit.time,
+      startTimeMs: startSplit.ms,
+      endTimeDate: endSplit.date,
+      endTimeTime: endSplit.time,
+      endTimeMs: endSplit.ms,
     });
     setShowModal(true);
   };
@@ -113,18 +178,25 @@ interface SegmentResponse {
     setSuccess('');
 
     try {
-      const payload = {
-        ...formData,
-        startTime: new Date(formData.startTime).toISOString(),
-        endTime: new Date(formData.endTime).toISOString(),
-      };
+      const startISO = combineISO(
+        formData.startTimeDate,
+        formData.startTimeTime,
+        formData.startTimeMs,
+      );
+      const endISO = combineISO(
+        formData.endTimeDate,
+        formData.endTimeTime,
+        formData.endTimeMs,
+      );
+
+      if (!startISO || !endISO) throw new Error('Invalid date/time');
 
       if (editingSegment) {
         const updatePayload: SegmentUpdateDto = {};
-        if (payload.segmentNumber !== undefined) updatePayload.segmentNumber = payload.segmentNumber;
-        if (payload.packetId !== undefined) updatePayload.packetId = payload.packetId;
-        if (payload.startTime) updatePayload.startTime = payload.startTime;
-        if (payload.endTime) updatePayload.endTime = payload.endTime;
+        if (formData.segmentNumber !== undefined) updatePayload.segmentNumber = formData.segmentNumber;
+        if (formData.packetId !== undefined) updatePayload.packetId = formData.packetId;
+        updatePayload.startTime = startISO;
+        updatePayload.endTime = endISO;
 
         const res = await fetch(`/api/Segments/${editingSegment.id}`, {
           method: 'PUT',
@@ -134,10 +206,17 @@ interface SegmentResponse {
         if (!res.ok) throw new Error('Failed to update segment');
         setSuccess('Segment updated successfully');
       } else {
+        const createPayload: SegmentCreateDto = {
+          segmentNumber: formData.segmentNumber,
+          packetId: formData.packetId,
+          startTime: startISO,
+          endTime: endISO,
+        };
+
         const res = await fetch('/api/Segments', {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify(payload),
+          body: JSON.stringify(createPayload),
         });
         if (!res.ok) throw new Error('Failed to create segment');
         setSuccess('Segment created successfully');
@@ -385,29 +464,68 @@ interface SegmentResponse {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-                    Start Time
-                  </label>
+              {/* Start Time – date, time, ms */}
+              <div className="space-y-1.5">
+                <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+                  Start Time
+                </label>
+                <div className="flex gap-2">
                   <input
-                    type="datetime-local"
+                    type="date"
                     required
-                    value={formData.startTime}
-                    onChange={e => setFormData(d => ({ ...d, startTime: e.target.value }))}
-                    className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none transition-all"
+                    value={formData.startTimeDate}
+                    onChange={e => setFormData(d => ({ ...d, startTimeDate: e.target.value }))}
+                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                  <input
+                    type="time"
+                    step="1"
+                    required
+                    value={formData.startTimeTime}
+                    onChange={e => setFormData(d => ({ ...d, startTimeTime: e.target.value }))}
+                    className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    placeholder="ms"
+                    value={formData.startTimeMs}
+                    onChange={e => setFormData(d => ({ ...d, startTimeMs: e.target.value }))}
+                    className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
-                    End Time
-                  </label>
+              </div>
+
+              {/* End Time – date, time, ms */}
+              <div className="space-y-1.5">
+                <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+                  End Time
+                </label>
+                <div className="flex gap-2">
                   <input
-                    type="datetime-local"
+                    type="date"
                     required
-                    value={formData.endTime}
-                    onChange={e => setFormData(d => ({ ...d, endTime: e.target.value }))}
-                    className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none transition-all"
+                    value={formData.endTimeDate}
+                    onChange={e => setFormData(d => ({ ...d, endTimeDate: e.target.value }))}
+                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                  <input
+                    type="time"
+                    step="1"
+                    required
+                    value={formData.endTimeTime}
+                    onChange={e => setFormData(d => ({ ...d, endTimeTime: e.target.value }))}
+                    className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    placeholder="ms"
+                    value={formData.endTimeMs}
+                    onChange={e => setFormData(d => ({ ...d, endTimeMs: e.target.value }))}
+                    className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
                   />
                 </div>
               </div>
