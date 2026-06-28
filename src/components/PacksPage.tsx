@@ -43,6 +43,26 @@ export default function PacksPage() {
   const [segmentsLoading, setSegmentsLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
+  // Current user role (default 3 = Analytics)
+  const [userRole, setUserRole] = useState<number>(3);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('skyguard-access-token');
+      if (!token) return;
+      const res = await fetch('/api/Users/me', {
+        headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const user = data.data ? data.data : data;
+        setUserRole(user.userrole ?? 3);
+      }
+    } catch {
+      /* silent */
+    }
+  };
+
   const fetchPacks = async (pageNum: number = 1) => {
     setLoading(true);
     try {
@@ -58,9 +78,16 @@ export default function PacksPage() {
     finally { setLoading(false); }
   };
 
+  useEffect(() => {
+    fetchCurrentUser(); // get role on mount
+  }, []);
+
   useEffect(() => { fetchPacks(page); }, [page]);
 
+  const canModify = userRole !== 3; // Super(1) & Admin(2) can modify
+
   const openCreate = () => {
+    if (!canModify) return;
     setEditing(null);
     setForm({ packetNumber: '', capturedAt: '', startTime: '', endTime: '' });
     setShowModal(true);
@@ -68,6 +95,7 @@ export default function PacksPage() {
 
   const openEdit = (e: React.MouseEvent, p: any) => {
     e.stopPropagation();
+    if (!canModify) return;
     setEditing(p);
     setForm({
       packetNumber: p.packetNumber != null ? String(p.packetNumber) : '',
@@ -80,6 +108,7 @@ export default function PacksPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canModify) return;
     setSubmitting(true);
     try {
       const payload = {
@@ -101,6 +130,7 @@ export default function PacksPage() {
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canModify) return;
     if (!confirm('Delete pack?')) return;
     try {
       await fetch(`/api/Packs/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
@@ -136,7 +166,11 @@ export default function PacksPage() {
             <button onClick={() => fetchPacks(page)} disabled={loading} className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan font-mono text-xs uppercase rounded-sm disabled:opacity-30 disabled:cursor-not-allowed">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm"><Plus className="w-3.5 h-3.5" /> Add Pack</button>
+            {canModify && (
+              <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm">
+                <Plus className="w-3.5 h-3.5" /> Add Pack
+              </button>
+            )}
           </div>
         </div>
 
@@ -170,8 +204,16 @@ export default function PacksPage() {
                     <td className="px-4 py-3 text-xs text-on-surface-variant font-mono">{fmtDate(p.endTime)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100">
-                        <button onClick={(e) => openEdit(e, p)} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => handleDelete(p.id, e)} className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+                        {canModify && (
+                          <>
+                            <button onClick={(e) => openEdit(e, p)} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={(e) => handleDelete(p.id, e)} className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -189,7 +231,8 @@ export default function PacksPage() {
         </div>
       </div>
 
-      {showModal && (
+      {/* Create / Edit Modal (only for allowed roles) */}
+      {showModal && canModify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
@@ -222,6 +265,7 @@ export default function PacksPage() {
         </div>
       )}
 
+      {/* Detail Modal (always available) */}
       {showDetail && detailPack && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowDetail(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-3xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>

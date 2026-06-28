@@ -62,6 +62,27 @@ export default function AIResultsPage() {
   const [detailData, setDetailData] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // Current user role (default 3 – Analytics)
+  const [userRole, setUserRole] = useState<number>(3);
+
+  // Fetch current user role
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('skyguard-access-token');
+      if (!token) return;
+      const res = await fetch('/api/Users/me', {
+        headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const user = data.data ? data.data : data;
+        setUserRole(user.userrole ?? 3);
+      }
+    } catch {
+      /* silent */
+    }
+  };
+
   const fetchResults = async (pageNum: number = 1) => {
     setLoading(true);
     setError('');
@@ -82,9 +103,16 @@ export default function AIResultsPage() {
     }
   };
 
+  useEffect(() => {
+    fetchCurrentUser(); // get role on mount
+  }, []);
+
   useEffect(() => { fetchResults(page); }, [page]);
 
+  const canModify = userRole !== 3; // Super(1) & Admin(2) can modify
+
   const openCreate = () => {
+    if (!canModify) return;
     setEditing(null);
     setForm({ ...emptyForm });
     clearFileSelection();
@@ -93,6 +121,7 @@ export default function AIResultsPage() {
 
   const openEdit = async (e: React.MouseEvent, r: any) => {
     e.stopPropagation();
+    if (!canModify) return;
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/AIResult/id?id=${r.id}`, { headers: getAuthHeaders() });
@@ -171,6 +200,7 @@ export default function AIResultsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canModify) return;
     setSubmitting(true);
     setError('');
     try {
@@ -188,7 +218,6 @@ export default function AIResultsPage() {
       let resultId: number;
 
       if (editing) {
-        // PUT - exclude segmentId and detectionId
         const { segmentId: _, detectionId: __, ...updatePayload } = payload;
         const res = await fetch(`/api/AIResult/id?id=${editing.id}`, {
           method: 'PUT',
@@ -209,7 +238,6 @@ export default function AIResultsPage() {
         resultId = created.id;
       }
 
-      // Upload image if a file was selected
       if (selectedFile && resultId) {
         const method = editing ? 'PUT' : 'POST';
         await uploadImage(resultId, selectedFile, method);
@@ -227,6 +255,7 @@ export default function AIResultsPage() {
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canModify) return;
     if (!window.confirm('Delete this AI result?')) return;
     try {
       const res = await fetch(`/api/AIResult/id?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() });
@@ -255,9 +284,11 @@ export default function AIResultsPage() {
             <button onClick={() => fetchResults(page)} disabled={loading} className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 font-mono text-xs uppercase rounded-sm disabled:opacity-30 disabled:cursor-not-allowed">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm">
-              <Plus className="w-3.5 h-3.5" /> Add Result
-            </button>
+            {canModify && (
+              <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm">
+                <Plus className="w-3.5 h-3.5" /> Add Result
+              </button>
+            )}
           </div>
         </div>
 
@@ -307,8 +338,12 @@ export default function AIResultsPage() {
                           {r.annotationImageUrl && (
                             <button onClick={(e) => { e.stopPropagation(); setPreviewImg(r.annotationImageUrl); }} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"><Eye className="w-3.5 h-3.5" /></button>
                           )}
-                          <button onClick={(e) => openEdit(e, r)} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"><Pencil className="w-3.5 h-3.5" /></button>
-                          <button onClick={(e) => handleDelete(r.id, e)} className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+                          {canModify && (
+                            <>
+                              <button onClick={(e) => openEdit(e, r)} className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={(e) => handleDelete(r.id, e)} className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -327,8 +362,8 @@ export default function AIResultsPage() {
         </div>
       </div>
 
-      {/* Create / Edit Modal */}
-      {showModal && (
+      {/* Create / Edit Modal (only for allowed roles) */}
+      {showModal && canModify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-white/5 shrink-0">
@@ -460,7 +495,7 @@ export default function AIResultsPage() {
         </div>
       )}
 
-      {/* Detail Modal */}
+      {/* Detail Modal (always available) */}
       {showDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowDetail(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>

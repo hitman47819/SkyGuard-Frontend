@@ -45,6 +45,28 @@ export default function DetectionsPage() {
   const [top5, setTop5] = useState<any[]>([]);
   const [unseen, setUnseen] = useState<any[]>([]);
 
+  // Current user role (default 3 – Analytics)
+  const [userRole, setUserRole] = useState<number>(3);
+
+  // Fetch current user to determine permissions
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('skyguard-access-token');
+      if (!token) return;
+      const res = await fetch('/api/Users/me', {
+        headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // API structure may wrap in .data or be flat
+        const user = data.data ? data.data : data;
+        setUserRole(user.userrole ?? 3);
+      }
+    } catch {
+      /* silent */
+    }
+  };
+
   const fetchDetections = async (pageNum: number = 1) => {
     setLoading(true);
     setError('');
@@ -80,12 +102,20 @@ export default function DetectionsPage() {
   };
 
   useEffect(() => {
+    fetchCurrentUser();          // get role on mount
+  }, []);
+
+  useEffect(() => {
     fetchDetections(page);
     fetchTop5();
     fetchUnseen();
   }, [page]);
 
+  // Guard for Analytics role
+  const canModify = userRole !== 3; // Super(1) & Admin(2) can modify
+
   const openCreate = () => {
+    if (!canModify) return; // extra safety
     setEditing(null);
     setForm({ name: '', description: '', isDroneRelated: false });
     setShowModal(true);
@@ -93,6 +123,7 @@ export default function DetectionsPage() {
 
   const openEdit = async (e: React.MouseEvent, d: Detection) => {
     e.stopPropagation();
+    if (!canModify) return;
     try {
       const res = await fetch(`/api/Detections/${d.id}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch detection');
@@ -112,10 +143,11 @@ export default function DetectionsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canModify) return;
     setSubmitting(true);
     try {
       if (editing) {
-        const res = await fetch(`/api/Detections/${editing.id}`, {
+        const res = await fetch(`/api/Detections?id=${editing.id}`, {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(form),
@@ -160,6 +192,7 @@ export default function DetectionsPage() {
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canModify) return;
     if (!window.confirm('Are you sure you want to delete this detection?')) return;
     try {
       const res = await fetch(`/api/Detections/${id}`, {
@@ -174,6 +207,9 @@ export default function DetectionsPage() {
       setError(err.message);
     }
   };
+
+  // Helper to decide which columns to show (always 5, but actions content changes)
+  const isAnalytics = userRole === 3;
 
   return (
     <div className="w-full relative py-20 min-h-[95vh]">
@@ -193,12 +229,15 @@ export default function DetectionsPage() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Detection
-            </button>
+            {/* Show "Add Detection" only if user can modify */}
+            {canModify && (
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Detection
+              </button>
+            )}
           </div>
         </div>
 
@@ -300,24 +339,30 @@ export default function DetectionsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100">
+                          {/* View details always available */}
                           <button
                             onClick={(e) => { e.stopPropagation(); d.id && openDetail(d.id); }}
                             className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={(e) => openEdit(e, d)}
-                            className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => handleDelete(d.id!, e)}
-                            className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Edit & Delete only for non-Analytics */}
+                          {canModify && (
+                            <>
+                              <button
+                                onClick={(e) => openEdit(e, d)}
+                                className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => handleDelete(d.id!, e)}
+                                className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -348,8 +393,8 @@ export default function DetectionsPage() {
         </div>
       </div>
 
-      {/* Create / Edit Modal */}
-      {showModal && (
+      {/* Create / Edit Modal (only rendered for non-Analytics) */}
+      {showModal && canModify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
@@ -375,39 +420,36 @@ export default function DetectionsPage() {
                   className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1 min-h-[80px]"
                 />
               </div>
-                {/* Replace the entire "Drone Related" block */}
-                <div>
-                  <label className="font-mono text-[10px] uppercase text-on-surface-variant block mb-2">
-                    Drone Related
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer select-none">
-                    {/* Hidden checkbox controls the state */}
-                    <input
-                      type="checkbox"
-                      checked={form.isDroneRelated}
-                      onChange={(e) => setForm({ ...form, isDroneRelated: e.target.checked })}
-                      className="sr-only" // visually hidden but accessible
-                    />
-                    {/* Toggle track */}
+              {/* Drone Related Toggle */}
+              <div>
+                <label className="font-mono text-[10px] uppercase text-on-surface-variant block mb-2">
+                  Drone Related
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.isDroneRelated}
+                    onChange={(e) => setForm({ ...form, isDroneRelated: e.target.checked })}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`relative w-10 h-5 rounded-full border transition-colors duration-200 ${
+                      form.isDroneRelated
+                        ? 'bg-brand-cyan/30 border-brand-cyan'
+                        : 'bg-slate-800 border-slate-600'
+                    }`}
+                  >
                     <div
-                      className={`relative w-10 h-5 rounded-full border transition-colors duration-200 ${
-                        form.isDroneRelated
-                          ? 'bg-brand-cyan/30 border-brand-cyan'
-                          : 'bg-slate-800 border-slate-600'
+                      className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
+                        form.isDroneRelated ? 'translate-x-5' : 'translate-x-0'
                       }`}
-                    >
-                      {/* Toggle knob */}
-                      <div
-                        className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
-                          form.isDroneRelated ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </div>
-                    <span className="font-mono text-xs uppercase text-slate-400">
-                      {form.isDroneRelated ? 'YES' : 'NO'}
-                    </span>
-                  </label>
-                </div>
+                    />
+                  </div>
+                  <span className="font-mono text-xs uppercase text-slate-400">
+                    {form.isDroneRelated ? 'YES' : 'NO'}
+                  </span>
+                </label>
+              </div>
               <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
                 <button
                   type="button"
@@ -429,7 +471,7 @@ export default function DetectionsPage() {
         </div>
       )}
 
-      {/* Detail Modal */}
+      {/* Detail Modal (always available) */}
       {showDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowDetail(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
