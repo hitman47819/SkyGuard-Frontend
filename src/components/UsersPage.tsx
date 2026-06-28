@@ -54,31 +54,33 @@ export default function UsersPage() {
     } catch { /* silent */ }
   };
 
-  const fetchUsers = async (pageNum: number = 1) => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+ const fetchUsers = async (pageNum: number = 1) => {
+  setLoading(true);
+  setError('');
+  try {
+    const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
 
-      const raw = await res.json();
-      const items: UserType[] = Array.isArray(raw) ? raw : (raw.data || []);
+    const raw = await res.json();
+    // The API returns { responses: UserType[], hasnextpage: boolean }
+    const items: UserType[] = raw.responses || [];
 
-      const normalized = items.map((u: any) => ({
-        ...u,
-        id: u.userID ?? u.id,
-      }));
+    const normalized = items.map((u: any) => ({
+      ...u,
+      id: u.userID ?? u.id,
+    }));
 
-      setUsers(normalized);
-      setHasMore(normalized.length === 10);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
+    setUsers(normalized);
+    setHasMore(raw.hasnextpage === true);
+  } catch (err: any) {
+    setError(err.message || 'Failed to load users');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchCurrentUser();
@@ -223,7 +225,7 @@ export default function UsersPage() {
                   <tr>
                     <td colSpan={5} className="px-4 py-12 text-center text-on-surface-variant text-sm">
                       <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      {isSuper ? 'No admin users found' : isAdmin ? 'No analytics users found' : 'No users to display'}
+                      No users found
                     </td>
                   </tr>
                 ) : (

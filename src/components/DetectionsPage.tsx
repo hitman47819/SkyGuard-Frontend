@@ -375,35 +375,39 @@ export default function DetectionsPage() {
                   className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1 min-h-[80px]"
                 />
               </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase text-on-surface-variant block mb-2">Drone Related</label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, isDroneRelated: false })}
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-sm font-mono text-xs uppercase transition-all cursor-pointer ${
-                      !form.isDroneRelated
-                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                        : 'bg-brand-bg border-white/15 text-slate-500 hover:border-white/30'
-                    }`}
-                  >
-                    <span className={`w-3 h-3 rounded-full border-2 transition-colors ${!form.isDroneRelated ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'}`} />
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, isDroneRelated: true })}
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-sm font-mono text-xs uppercase transition-all cursor-pointer ${
-                      form.isDroneRelated
-                        ? 'bg-brand-cyan/10 border-brand-cyan/40 text-brand-cyan'
-                        : 'bg-brand-bg border-white/15 text-slate-500 hover:border-white/30'
-                    }`}
-                  >
-                    <span className={`w-3 h-3 rounded-full border-2 transition-colors ${form.isDroneRelated ? 'bg-brand-cyan border-brand-cyan' : 'border-slate-600'}`} />
-                    Yes
-                  </button>
+                {/* Replace the entire "Drone Related" block */}
+                <div>
+                  <label className="font-mono text-[10px] uppercase text-on-surface-variant block mb-2">
+                    Drone Related
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    {/* Hidden checkbox controls the state */}
+                    <input
+                      type="checkbox"
+                      checked={form.isDroneRelated}
+                      onChange={(e) => setForm({ ...form, isDroneRelated: e.target.checked })}
+                      className="sr-only" // visually hidden but accessible
+                    />
+                    {/* Toggle track */}
+                    <div
+                      className={`relative w-10 h-5 rounded-full border transition-colors duration-200 ${
+                        form.isDroneRelated
+                          ? 'bg-brand-cyan/30 border-brand-cyan'
+                          : 'bg-slate-800 border-slate-600'
+                      }`}
+                    >
+                      {/* Toggle knob */}
+                      <div
+                        className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
+                          form.isDroneRelated ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </div>
+                    <span className="font-mono text-xs uppercase text-slate-400">
+                      {form.isDroneRelated ? 'YES' : 'NO'}
+                    </span>
+                  </label>
                 </div>
-              </div>
               <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
                 <button
                   type="button"
