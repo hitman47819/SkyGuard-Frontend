@@ -27,7 +27,6 @@ const ROLE_RESTRICTED_TABS: { tab: ActiveTab; allowedRoles: number[] }[] = [
   { tab: 'users', allowedRoles: [1, 2] },
 ];
 
-// Public paths where auto-redirect to login triggers on load if a valid token exists
 const AUTO_REDIRECT_PATHS = ['', 'features', 'technology', 'contact'];
 
 const validateToken = async (token: string | null): Promise<boolean> => {
@@ -69,7 +68,6 @@ export default function App() {
   const [systemStatus] = useState<'active' | 'alert' | 'securing'>('active');
   const initialPublicCheckDone = useRef(false);
 
-  // Ref to avoid stale closures in the hashchange handler
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -93,7 +91,6 @@ export default function App() {
     }
   };
 
-  // Fetch user data on mount if already authenticated
   useEffect(() => {
     if (hasSession()) {
       const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -118,8 +115,6 @@ export default function App() {
       if (rawHash === '#' || rawHash === '') rawHash = '#/';
       const path = rawHash.split('?')[0].slice(2);
       const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-      const sessionValid = hasSession();
-      const currentUser = userRef.current;
 
       // ── 1. Accept invite — always accessible ──
       if (path === 'accept-invite') {
@@ -128,7 +123,7 @@ export default function App() {
         return;
       }
 
-      // ── 2. Login page — requires valid token ──
+      // ── 2. Login page — requires valid token, always shows the form ──
       if (path === 'login') {
         setIsChecking(true);
         const valid = await validateToken(token);
@@ -140,12 +135,7 @@ export default function App() {
           return;
         }
 
-        // Already logged in → dashboard
-        if (sessionValid) {
-          navigate('dashboard');
-          return;
-        }
-
+        // Always show the login form so the user can get fresh tokens
         setAuthRoute('login');
         return;
       }
@@ -158,7 +148,6 @@ export default function App() {
       if (isPublic) {
         // On initial page load: if a token exists, validate it.
         // If valid → auto-redirect to login (staff detected).
-        // This runs exactly once per page load regardless of session state.
         if (!initialPublicCheckDone.current && AUTO_REDIRECT_PATHS.includes(path)) {
           initialPublicCheckDone.current = true;
           if (token) {
@@ -184,8 +173,7 @@ export default function App() {
       const roleRestriction = ROLE_RESTRICTED_TABS.find((r) => r.tab === path);
 
       if (isProtected || roleRestriction) {
-        if (!sessionValid) {
-          // No session — if token is structurally valid, send to login
+        if (!hasSession()) {
           if (token) {
             setIsChecking(true);
             const valid = await validateToken(token);
@@ -201,8 +189,7 @@ export default function App() {
           return;
         }
 
-        // Fetch user inline if needed for role checks
-        if (!currentUser && roleRestriction) {
+        if (!userRef.current && roleRestriction) {
           if (token) {
             const fetched = await fetchUser(token);
             if (id !== checkId) return;
