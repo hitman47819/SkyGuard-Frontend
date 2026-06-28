@@ -4,8 +4,8 @@ import {
   AlertCircle, CheckCircle, RefreshCw, X, ChevronLeft, ChevronRight,
   Crown, UserPlus
 } from 'lucide-react';
-import type { User as UserType, ApiResponse, UpdateUserRequest } from '../types';
-import InviteUserPage from './InviteUserPage'; // Adjust path if needed
+import type { User as UserType, UpdateUserRequest } from '../types';
+import InviteUserPage from './InviteUserPage';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
@@ -30,13 +30,11 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  // Edit modal
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [editForm, setEditForm] = useState<UpdateUserRequest>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Invite modal
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   const isSuper = currentUser?.userrole === 1;
@@ -51,7 +49,7 @@ export default function UsersPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCurrentUser(data);
+        setCurrentUser(data.data ? data.data : data);
       }
     } catch { /* silent */ }
   };
@@ -86,12 +84,6 @@ export default function UsersPage() {
     fetchCurrentUser();
     fetchUsers(page);
   }, [page]);
-
-  const visibleUsers = users.filter(u => {
-    if (isSuper) return u.userrole === 2; // Super sees only Admins
-    if (isAdmin) return u.userrole === 3; // Admin sees only Analytics users
-    return false; // Analytics can't see users page at all
-  });
 
   const openEdit = (user: UserType) => {
     setEditingUser(user);
@@ -170,9 +162,10 @@ export default function UsersPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => fetchUsers(page)}
-                className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 transition-all font-mono text-xs uppercase tracking-wider rounded-sm"
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 transition-all font-mono text-xs uppercase tracking-wider rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
               {(isSuper || isAdmin) && (
@@ -204,7 +197,6 @@ export default function UsersPage() {
 
         {/* Users Table */}
         <div className="bg-brand-slate/40 border border-white/5 rounded-sm overflow-hidden">
-          {/* ... Table content remains exactly the same ... */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -227,7 +219,7 @@ export default function UsersPage() {
                       ))}
                     </tr>
                   ))
-                ) : visibleUsers.length === 0 ? (
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-12 text-center text-on-surface-variant text-sm">
                       <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -235,7 +227,7 @@ export default function UsersPage() {
                     </td>
                   </tr>
                 ) : (
-                  visibleUsers.map((u) => {
+                  users.map((u) => {
                     const roleConfig = ROLE_CONFIG[u.userrole as keyof typeof ROLE_CONFIG];
                     const RoleIcon = roleConfig?.icon || User;
                     return (
@@ -296,15 +288,15 @@ export default function UsersPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 rounded-sm transition-all"
+                disabled={page === 1 || loading}
+                className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setPage(p => p + 1)}
-                disabled={!hasMore}
-                className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 rounded-sm transition-all"
+                disabled={!hasMore || loading}
+                className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-all"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -315,8 +307,8 @@ export default function UsersPage() {
 
       {/* Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
               <h2 className="font-display text-lg font-bold text-white flex items-center gap-2">
                 <Pencil className="w-4 h-4 text-brand-cyan" />
@@ -407,21 +399,21 @@ export default function UsersPage() {
 
       {/* Invite User Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-2xl my-8 relative">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto" onClick={() => setShowInviteModal(false)}>
+          <div className="w-full max-w-2xl my-8 relative" onClick={e => e.stopPropagation()}>
             <button
               onClick={() => setShowInviteModal(false)}
               className="absolute top-4 right-4 z-50 p-2 text-slate-400 hover:text-white bg-slate-800/50 rounded-full transition-all"
             >
               <X className="w-5 h-5" />
             </button>
-            
-            <InviteUserPage 
-              userRole={currentUser?.userrole || 3} 
+
+            <InviteUserPage
+              userRole={currentUser?.userrole || 3}
               onInviteSent={() => {
                 setShowInviteModal(false);
                 fetchUsers(page);
-              }} 
+              }}
             />
           </div>
         </div>

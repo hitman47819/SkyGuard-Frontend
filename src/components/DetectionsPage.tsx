@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radar, RefreshCw, AlertCircle, CheckCircle, Trash2, ChevronLeft, ChevronRight, Plus, Eye, TrendingUp, EyeOff } from 'lucide-react';
+import { Radar, RefreshCw, AlertCircle, CheckCircle, Trash2, ChevronLeft, ChevronRight, Plus, Eye, TrendingUp, EyeOff, Pencil } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
@@ -34,6 +34,7 @@ export default function DetectionsPage() {
   const [hasMore, setHasMore] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: '', description: '', isDroneRelated: false });
   const [submitting, setSubmitting] = useState(false);
 
@@ -85,21 +86,51 @@ export default function DetectionsPage() {
   }, [page]);
 
   const openCreate = () => {
+    setEditing(null);
     setForm({ name: '', description: '', isDroneRelated: false });
     setShowModal(true);
+  };
+
+  const openEdit = async (e: React.MouseEvent, d: Detection) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/Detections/${d.id}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch detection');
+      const raw = await res.json();
+      const data = raw.data ? raw.data : raw;
+      setEditing(data);
+      setForm({
+        name: data.name ?? '',
+        description: data.description ?? '',
+        isDroneRelated: data.isDroneRelated === true,
+      });
+      setShowModal(true);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch('/api/Detections', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error('Failed to create detection');
-      setSuccess('Detection created');
+      if (editing) {
+        const res = await fetch(`/api/Detections/${editing.id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error('Failed to update detection');
+        setSuccess('Detection updated');
+      } else {
+        const res = await fetch('/api/Detections', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error('Failed to create detection');
+        setSuccess('Detection created');
+      }
       setShowModal(false);
       fetchDetections(page);
       fetchTop5();
@@ -276,6 +307,12 @@ export default function DetectionsPage() {
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            onClick={(e) => openEdit(e, d)}
+                            className="p-1.5 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 rounded-sm"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={(e) => handleDelete(d.id!, e)}
                             className="p-1.5 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 rounded-sm"
                           >
@@ -311,12 +348,12 @@ export default function DetectionsPage() {
         </div>
       </div>
 
-      {/* Create Modal */}
+      {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <div className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-white/5">
-              <h2 className="font-display text-lg font-bold text-white">Create Detection</h2>
+              <h2 className="font-display text-lg font-bold text-white">{editing ? 'Edit Detection' : 'Create Detection'}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><span className="text-xl leading-none">&times;</span></button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
@@ -338,15 +375,34 @@ export default function DetectionsPage() {
                   className="w-full bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-3 py-2.5 text-sm rounded-sm outline-none mt-1 min-h-[80px]"
                 />
               </div>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, isDroneRelated: !form.isDroneRelated })}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${form.isDroneRelated ? 'bg-brand-cyan' : 'bg-white/10'}`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.isDroneRelated ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-                <label className="font-mono text-[10px] uppercase text-on-surface-variant">Drone Related</label>
+              <div>
+                <label className="font-mono text-[10px] uppercase text-on-surface-variant block mb-2">Drone Related</label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, isDroneRelated: false })}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-sm font-mono text-xs uppercase transition-all cursor-pointer ${
+                      !form.isDroneRelated
+                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+                        : 'bg-brand-bg border-white/15 text-slate-500 hover:border-white/30'
+                    }`}
+                  >
+                    <span className={`w-3 h-3 rounded-full border-2 transition-colors ${!form.isDroneRelated ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'}`} />
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, isDroneRelated: true })}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-sm font-mono text-xs uppercase transition-all cursor-pointer ${
+                      form.isDroneRelated
+                        ? 'bg-brand-cyan/10 border-brand-cyan/40 text-brand-cyan'
+                        : 'bg-brand-bg border-white/15 text-slate-500 hover:border-white/30'
+                    }`}
+                  >
+                    <span className={`w-3 h-3 rounded-full border-2 transition-colors ${form.isDroneRelated ? 'bg-brand-cyan border-brand-cyan' : 'border-slate-600'}`} />
+                    Yes
+                  </button>
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
                 <button
@@ -361,7 +417,7 @@ export default function DetectionsPage() {
                   disabled={submitting}
                   className="px-4 py-2 bg-brand-cyan text-brand-bg hover:bg-brand-cyan-light font-mono text-xs uppercase font-bold rounded-sm disabled:opacity-50"
                 >
-                  {submitting ? 'Creating...' : 'Create'}
+                  {submitting ? (editing ? 'Updating...' : 'Creating...') : (editing ? 'Update' : 'Create')}
                 </button>
               </div>
             </form>
