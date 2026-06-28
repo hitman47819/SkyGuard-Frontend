@@ -13,48 +13,32 @@ const getAuthHeaders = () => {
   };
 };
 
-// --- Helpers for millisecond precision ---
-
-/**
- * Splits an ISO string into { date: 'yyyy-mm-dd', time: 'HH:MM', ms: 'SSS' }
- * Milliseconds are optional – returns '' if not present.
- */
+// Time helpers – splits into date, time (HH:MM), sec, ms
 const splitISO = (iso: string) => {
-  if (!iso) return { date: '', time: '', ms: '' };
+  if (!iso) return { date: '', time: '', sec: '', ms: '' };
   try {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return { date: '', time: '', ms: '' };
+    if (isNaN(d.getTime())) return { date: '', time: '', sec: '', ms: '' };
     const pad = (n: number, len = 2) => String(n).padStart(len, '0');
     const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const sec = pad(d.getSeconds());
     const ms = d.getMilliseconds() === 0 ? '' : pad(d.getMilliseconds(), 3);
-    return { date, time, ms };
+    return { date, time, sec, ms };
   } catch {
-    return { date: '', time: '', ms: '' };
+    return { date: '', time: '', sec: '', ms: '' };
   }
 };
 
-/**
- * Combines date, time, and optional ms into a full ISO-8601 string (UTC).
- * Seconds are set to "00" unless the browser provides them via step="1".
- * Actually the time input with step="1" gives HH:MM:SS – so we'll use seconds from there.
- * We'll slightly adjust: the time input will now store HH:MM:SS (from a time input with step="1").
- */
-const combineISO = (date: string, time: string, ms: string): string => {
+const combineISO = (date: string, time: string, sec: string, ms: string): string => {
   if (!date || !time) return '';
-  // time format can be HH:MM or HH:MM:SS – we'll parse accordingly
-  const parts = time.split(':');
-  const hours = parts[0]?.padStart(2, '0') ?? '00';
-  const minutes = parts[1]?.padStart(2, '0') ?? '00';
-  const seconds = parts[2]?.padStart(2, '0') ?? '00';
+  const secPart = sec ? sec.padStart(2, '0') : '00';
   const msPart = ms ? `.${ms.padStart(3, '0')}` : '';
-  const isoString = `${date}T${hours}:${minutes}:${seconds}${msPart}Z`;
+  const isoString = `${date}T${time}:${secPart}${msPart}Z`;
   const test = new Date(isoString);
   if (isNaN(test.getTime())) return '';
   return isoString;
 };
-
-// --- Component ---
 
 interface SegmentResponse {
   responses: Segment[];
@@ -70,20 +54,13 @@ export default function SegmentsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
-
-  // Precise form: we store date, time (HH:MM or HH:MM:SS), and ms separately
   const [formData, setFormData] = useState({
     segmentNumber: 1,
     packetId: 1,
-    startTimeDate: '',
-    startTimeTime: '',
-    startTimeMs: '',
-    endTimeDate: '',
-    endTimeTime: '',
-    endTimeMs: '',
+    startTimeDate: '', startTimeTime: '', startTimeSec: '', startTimeMs: '',
+    endTimeDate: '', endTimeTime: '', endTimeSec: '', endTimeMs: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -114,7 +91,6 @@ export default function SegmentsPage() {
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
       const result: SegmentResponse = await res.json();
-
       const normalized = (result.responses ?? []).map((s: any) => ({
         ...s,
         id: s.segmentID ?? s.id,
@@ -145,9 +121,11 @@ export default function SegmentsPage() {
       packetId: 1,
       startTimeDate: nowSplit.date,
       startTimeTime: nowSplit.time,
+      startTimeSec: nowSplit.sec,
       startTimeMs: nowSplit.ms,
       endTimeDate: laterSplit.date,
       endTimeTime: laterSplit.time,
+      endTimeSec: laterSplit.sec,
       endTimeMs: laterSplit.ms,
     });
     setShowModal(true);
@@ -163,9 +141,11 @@ export default function SegmentsPage() {
       packetId: segment.packetId,
       startTimeDate: startSplit.date,
       startTimeTime: startSplit.time,
+      startTimeSec: startSplit.sec,
       startTimeMs: startSplit.ms,
       endTimeDate: endSplit.date,
       endTimeTime: endSplit.time,
+      endTimeSec: endSplit.sec,
       endTimeMs: endSplit.ms,
     });
     setShowModal(true);
@@ -181,11 +161,13 @@ export default function SegmentsPage() {
       const startISO = combineISO(
         formData.startTimeDate,
         formData.startTimeTime,
+        formData.startTimeSec,
         formData.startTimeMs,
       );
       const endISO = combineISO(
         formData.endTimeDate,
         formData.endTimeTime,
+        formData.endTimeSec,
         formData.endTimeMs,
       );
 
@@ -259,7 +241,6 @@ export default function SegmentsPage() {
   return (
     <div className="w-full relative py-20 min-h-[95vh]">
       <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none"></div>
-
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12 mt-16 space-y-6 relative z-10">
         {/* Header */}
         <div className="bg-brand-slate/40 p-5 border border-white/5 rounded-sm">
@@ -394,21 +375,18 @@ export default function SegmentsPage() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-brand-bg/30">
-            <span className="font-mono text-[10px] text-on-surface-variant">
-              Page {page}
-            </span>
+            <span className="font-mono text-[10px] text-on-surface-variant">Page {page}</span>
             <div className="flex items-center gap-2">
               <button
-                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1 || loading}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
                 className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 rounded-sm transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-             <button
-              onClick={() => setPage(p => p + 1)}
-              disabled={!hasMore || loading}
-
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={!hasMore || loading}
                 className="p-1.5 border border-white/10 text-slate-400 hover:text-brand-cyan hover:border-brand-cyan/30 disabled:opacity-30 rounded-sm transition-all"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -464,26 +442,34 @@ export default function SegmentsPage() {
                 </div>
               </div>
 
-              {/* Start Time – date, time, ms */}
+              {/* Start Time – explicit fields */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                   Start Time
                 </label>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1.5">
                   <input
                     type="date"
                     required
                     value={formData.startTimeDate}
                     onChange={e => setFormData(d => ({ ...d, startTimeDate: e.target.value }))}
-                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-xs rounded-sm outline-none"
                   />
                   <input
                     type="time"
-                    step="1"
                     required
                     value={formData.startTimeTime}
                     onChange={e => setFormData(d => ({ ...d, startTimeTime: e.target.value }))}
-                    className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                    className="w-20 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-1 py-2 text-xs rounded-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    placeholder="s"
+                    value={formData.startTimeSec}
+                    onChange={e => setFormData(d => ({ ...d, startTimeSec: e.target.value }))}
+                    className="w-12 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-1 py-2 text-xs rounded-sm outline-none"
                   />
                   <input
                     type="number"
@@ -492,31 +478,39 @@ export default function SegmentsPage() {
                     placeholder="ms"
                     value={formData.startTimeMs}
                     onChange={e => setFormData(d => ({ ...d, startTimeMs: e.target.value }))}
-                    className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                    className="w-14 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-1 py-2 text-xs rounded-sm outline-none"
                   />
                 </div>
               </div>
 
-              {/* End Time – date, time, ms */}
+              {/* End Time – explicit fields */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                   End Time
                 </label>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1.5">
                   <input
                     type="date"
                     required
                     value={formData.endTimeDate}
                     onChange={e => setFormData(d => ({ ...d, endTimeDate: e.target.value }))}
-                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                    className="flex-1 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-xs rounded-sm outline-none"
                   />
                   <input
                     type="time"
-                    step="1"
                     required
                     value={formData.endTimeTime}
                     onChange={e => setFormData(d => ({ ...d, endTimeTime: e.target.value }))}
-                    className="w-24 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                    className="w-20 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-1 py-2 text-xs rounded-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    placeholder="s"
+                    value={formData.endTimeSec}
+                    onChange={e => setFormData(d => ({ ...d, endTimeSec: e.target.value }))}
+                    className="w-12 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-1 py-2 text-xs rounded-sm outline-none"
                   />
                   <input
                     type="number"
@@ -525,7 +519,7 @@ export default function SegmentsPage() {
                     placeholder="ms"
                     value={formData.endTimeMs}
                     onChange={e => setFormData(d => ({ ...d, endTimeMs: e.target.value }))}
-                    className="w-16 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-2 py-2 text-sm rounded-sm outline-none"
+                    className="w-14 bg-brand-bg border border-white/15 focus:border-brand-cyan text-white px-1 py-2 text-xs rounded-sm outline-none"
                   />
                 </div>
               </div>
