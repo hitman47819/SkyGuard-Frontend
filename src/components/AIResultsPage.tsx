@@ -65,12 +65,12 @@ export default function AIResultsPage() {
   // Current user role (default 3 – Analytics)
   const [userRole, setUserRole] = useState<number>(3);
 
-  // Fetch current user role
+  // authFetch current user role
   const fetchCurrentUser = async () => {
     try {
       const token = localStorage.getItem('skyguard-access-token');
       if (!token) return;
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -87,7 +87,7 @@ export default function AIResultsPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/AIResult?pagenum=${pageNum}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/AIResult?pagenum=${pageNum}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const raw = await res.json();
       const wrapper = Array.isArray(raw) ? raw[0] : raw;
@@ -124,8 +124,8 @@ export default function AIResultsPage() {
     if (!canModify) return;
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/AIResult/id?id=${r.id}`, { headers: getAuthHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch result');
+      const res = await authFetch(`/api/AIResult/id?id=${r.id}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to authFetch result');
       const raw = await res.json();
       const data = raw.data ? raw.data : raw;
       setEditing(data);
@@ -154,7 +154,7 @@ export default function AIResultsPage() {
     setDetailLoading(true);
     setDetailData(null);
     try {
-      const res = await fetch(`/api/AIResult/id?id=${r.id}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/AIResult/id?id=${r.id}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const raw = await res.json();
         setDetailData(raw.data ? raw.data : raw);
@@ -186,7 +186,7 @@ export default function AIResultsPage() {
     try {
       const formData = new FormData();
       formData.append('Image', file);
-      const res = await fetch(`/api/AIResult/upload-image?id=${id}`, {
+      const res = await authFetch(`/api/AIResult/upload-image?id=${id}`, {
         method,
         headers: getAuthHeadersNoContentType(),
         body: formData,
@@ -219,7 +219,7 @@ export default function AIResultsPage() {
 
       if (editing) {
         const { segmentId: _, detectionId: __, ...updatePayload } = payload;
-        const res = await fetch(`/api/AIResult/id?id=${editing.id}`, {
+        const res = await authFetch(`/api/AIResult/id?id=${editing.id}`, {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(updatePayload),
@@ -227,7 +227,7 @@ export default function AIResultsPage() {
         if (!res.ok) throw new Error('Failed to update AI result');
         resultId = editing.id;
       } else {
-        const res = await fetch('/api/AIResult', {
+        const res = await authFetch('/api/AIResult', {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -258,7 +258,7 @@ export default function AIResultsPage() {
     if (!canModify) return;
     if (!window.confirm('Delete this AI result?')) return;
     try {
-      const res = await fetch(`/api/AIResult/id?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await authFetch(`/api/AIResult/id?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to delete');
       setSuccess('AI result deleted');
       fetchResults(page);

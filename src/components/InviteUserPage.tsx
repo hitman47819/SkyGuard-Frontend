@@ -61,7 +61,7 @@ export default function InviteUserPage({ userRole, onInviteSent }: InviteUserPag
     try {
       const token = localStorage.getItem("skyguard-access-token");
 
-      const response = await fetch("/api/Authentication/invite", {
+      const response = await authFetch("/api/Authentication/invite", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -32,7 +32,7 @@ const AUTO_REDIRECT_PATHS = ['', 'features', 'technology', 'contact'];
 const validateToken = async (token: string | null): Promise<boolean> => {
   if (!token) return false;
   try {
-    const res = await fetch('/api/Authentication/validate-token', {
+    const res = await authFetch('/api/Authentication/validate-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accessToken: token }),
@@ -47,7 +47,7 @@ const validateToken = async (token: string | null): Promise<boolean> => {
 
 const fetchUser = async (token: string): Promise<any> => {
   try {
-    const res = await fetch('/api/Users/me', {
+    const res = await authFetch('/api/Users/me', {
       headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
     });
     if (res.ok) {

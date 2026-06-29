@@ -70,7 +70,7 @@ export default function SegmentsPage() {
     try {
       const token = localStorage.getItem('skyguard-access-token');
       if (!token) return;
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -85,7 +85,7 @@ export default function SegmentsPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/Segments?pagenum=${pageNum}`, {
+      const res = await authFetch(`/api/Segments?pagenum=${pageNum}`, {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -180,7 +180,7 @@ export default function SegmentsPage() {
         updatePayload.startTime = startISO;
         updatePayload.endTime = endISO;
 
-        const res = await fetch(`/api/Segments/${editingSegment.id}`, {
+        const res = await authFetch(`/api/Segments/${editingSegment.id}`, {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(updatePayload),
@@ -195,7 +195,7 @@ export default function SegmentsPage() {
           endTime: endISO,
         };
 
-        const res = await fetch('/api/Segments', {
+        const res = await authFetch('/api/Segments', {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(createPayload),
@@ -218,7 +218,7 @@ export default function SegmentsPage() {
     setError('');
     setSuccess('');
     try {
-      const res = await fetch(`/api/Segments/${id}`, {
+      const res = await authFetch(`/api/Segments/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

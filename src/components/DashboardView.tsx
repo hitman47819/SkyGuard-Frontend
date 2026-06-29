@@ -89,7 +89,7 @@ export default function DashboardView() {
     const token = localStorage.getItem('skyguard-access-token');
     if (!token) return;
     try {
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -111,17 +111,17 @@ export default function DashboardView() {
         statsRes, timelineRes, droneRes, hourlyRes, recentRes,
         distRes, confRes, confByDroneRes, dailyRes, trendRes, lastSeenRes,
       ] = await Promise.all([
-        fetch(`/api/Analytic/dashboard?from=${from}&to=${to}`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/timeline?days=30`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/top-drone-types?count=8`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/hourly`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/recent?count=10`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/detection-distribution?from=${from}&to=${to}`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/confidence`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/confidence-by-drone`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/daily-detection-types?days=30`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/trend`, { headers: getAuthHeaders() }),
-        fetch(`/api/Analytic/last-seen`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/dashboard?from=${from}&to=${to}`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/timeline?days=30`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/top-drone-types?count=8`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/hourly`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/recent?count=10`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/detection-distribution?from=${from}&to=${to}`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/confidence`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/confidence-by-drone`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/daily-detection-types?days=30`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/trend`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Analytic/last-seen`, { headers: getAuthHeaders() }),
       ]);
 
       if (statsRes.ok) {

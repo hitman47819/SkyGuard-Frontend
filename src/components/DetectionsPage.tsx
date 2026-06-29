@@ -48,12 +48,12 @@ export default function DetectionsPage() {
   // Current user role (default 3 – Analytics)
   const [userRole, setUserRole] = useState<number>(3);
 
-  // Fetch current user to determine permissions
+  // authFetch current user to determine permissions
   const fetchCurrentUser = async () => {
     try {
       const token = localStorage.getItem('skyguard-access-token');
       if (!token) return;
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -71,7 +71,7 @@ export default function DetectionsPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/Detections?pagenum=${pageNum}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/Detections?pagenum=${pageNum}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const result: DetectionResponse = await res.json();
       const normalized = (result.responses ?? []).map((d: any) => ({
@@ -89,14 +89,14 @@ export default function DetectionsPage() {
 
   const fetchTop5 = async () => {
     try {
-      const res = await fetch('/api/Detections/top5', { headers: getAuthHeaders() });
+      const res = await authFetch('/api/Detections/top5', { headers: getAuthHeaders() });
       if (res.ok) setTop5(safeArray(await res.json()));
     } catch { /* silent */ }
   };
 
   const fetchUnseen = async () => {
     try {
-      const res = await fetch('/api/Detections/unseen', { headers: getAuthHeaders() });
+      const res = await authFetch('/api/Detections/unseen', { headers: getAuthHeaders() });
       if (res.ok) setUnseen(safeArray(await res.json()));
     } catch { /* silent */ }
   };
@@ -125,8 +125,8 @@ export default function DetectionsPage() {
     e.stopPropagation();
     if (!canModify) return;
     try {
-      const res = await fetch(`/api/Detections/${d.id}`, { headers: getAuthHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch detection');
+      const res = await authFetch(`/api/Detections/${d.id}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to authFetch detection');
       const raw = await res.json();
       const data = raw.data ? raw.data : raw;
       setEditing(data);
@@ -147,7 +147,7 @@ export default function DetectionsPage() {
     setSubmitting(true);
     try {
       if (editing) {
-        const res = await fetch(`/api/Detections?id=${editing.id}`, {
+        const res = await authFetch(`/api/Detections?id=${editing.id}`, {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(form),
@@ -155,7 +155,7 @@ export default function DetectionsPage() {
         if (!res.ok) throw new Error('Failed to update detection');
         setSuccess('Detection updated');
       } else {
-        const res = await fetch('/api/Detections', {
+        const res = await authFetch('/api/Detections', {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(form),
@@ -178,7 +178,7 @@ export default function DetectionsPage() {
     setDetailLoading(true);
     setDetailData(null);
     try {
-      const res = await fetch(`/api/Detections/${id}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/Detections/${id}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const raw = await res.json();
         setDetailData(raw.data ? raw.data : raw);
@@ -195,7 +195,7 @@ export default function DetectionsPage() {
     if (!canModify) return;
     if (!window.confirm('Are you sure you want to delete this detection?')) return;
     try {
-      const res = await fetch(`/api/Detections/${id}`, {
+      const res = await authFetch(`/api/Detections/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

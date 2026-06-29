@@ -74,7 +74,7 @@ export default function PacksPage() {
     try {
       const token = localStorage.getItem('skyguard-access-token');
       if (!token) return;
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -88,7 +88,7 @@ export default function PacksPage() {
   const fetchPacks = async (pageNum: number = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/Packs?pagenum=${pageNum}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/Packs?pagenum=${pageNum}`, { headers: getAuthHeaders() });
       const raw = await res.json();
       const wrapper = Array.isArray(raw) ? raw[0] : raw;
       const items = wrapper?.responses ?? [];
@@ -144,7 +144,7 @@ export default function PacksPage() {
       };
       const url = editing ? `/api/Packs/${editing.id}` : '/api/Packs';
       const method = editing ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
+      const res = await authFetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
       if (!res.ok) throw new Error('Failed to save pack');
       setSuccess(editing ? 'Pack updated' : 'Pack created');
       setShowModal(false);
@@ -158,7 +158,7 @@ export default function PacksPage() {
     if (!canModify) return;
     if (!confirm('Delete pack?')) return;
     try {
-      await fetch(`/api/Packs/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      await authFetch(`/api/Packs/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       setSuccess('Pack deleted');
       fetchPacks(page);
     } catch (err: any) { setError(err.message); }
@@ -170,7 +170,7 @@ export default function PacksPage() {
     setSegmentsLoading(true);
     setSegments([]);
     try {
-      const res = await fetch(`/api/Segments/pack/${pack.id}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/Segments/pack/${pack.id}`, { headers: getAuthHeaders() });
       const raw = await res.json();
       const items = Array.isArray(raw) ? raw : (raw?.responses ?? []);
       setSegments(items);

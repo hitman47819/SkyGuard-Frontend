@@ -27,7 +27,7 @@ export default function DroneTypesPage() {
     try {
       const token = localStorage.getItem('skyguard-access-token');
       if (!token) return;
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -41,7 +41,7 @@ export default function DroneTypesPage() {
   const fetchTypes = async (pageNum: number = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/Dronetype?pagenum=${pageNum}`, { headers: getAuthHeaders() });
+      const res = await authFetch(`/api/Dronetype?pagenum=${pageNum}`, { headers: getAuthHeaders() });
       const raw = await res.json();
       const wrapper = Array.isArray(raw) ? raw[0] : raw;
       const items = wrapper?.responses ?? [];
@@ -76,7 +76,7 @@ export default function DroneTypesPage() {
     try {
       const url = editing ? `/api/Dronetype/${editing.id}` : '/api/Dronetype';
       const method = editing ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(form) });
+      const res = await authFetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(form) });
       if (!res.ok) throw new Error('Failed to save drone type');
       setSuccess(editing ? 'Drone type updated' : 'Drone type created');
       setShowModal(false);
@@ -88,7 +88,7 @@ export default function DroneTypesPage() {
     if (!canModify) return;
     if (!confirm('Delete drone type?')) return;
     try {
-      await fetch(`/api/Dronetype/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      await authFetch(`/api/Dronetype/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       setSuccess('Drone type deleted');
       fetchTypes(page);
     } catch (e: any) { setError(e.message); }

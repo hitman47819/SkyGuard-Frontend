@@ -44,7 +44,7 @@ export default function UsersPage() {
     try {
       const token = localStorage.getItem('skyguard-access-token');
       if (!token) return;
-      const res = await fetch('/api/Users/me', {
+      const res = await authFetch('/api/Users/me', {
         headers: { Authorization: `Bearer ${token}`, Accept: '*/*' },
       });
       if (res.ok) {
@@ -58,7 +58,7 @@ export default function UsersPage() {
   setLoading(true);
   setError('');
   try {
-    const res = await fetch(`/api/Users?pagenum=${pageNum}`, {
+    const res = await authFetch(`/api/Users?pagenum=${pageNum}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -106,7 +106,7 @@ export default function UsersPage() {
     setSuccess('');
 
     try {
-      const res = await fetch(`/api/Users/${editingUser.id}`, {
+      const res = await authFetch(`/api/Users/${editingUser.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(editForm),
@@ -127,7 +127,7 @@ export default function UsersPage() {
     setError('');
     setSuccess('');
     try {
-      const res = await fetch(`/api/Users/${id}`, {
+      const res = await authFetch(`/api/Users/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
