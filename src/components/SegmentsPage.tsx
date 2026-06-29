@@ -4,7 +4,7 @@ import {
   RefreshCw, X, ChevronLeft, ChevronRight, Package
 } from 'lucide-react';
 import type { Segment, SegmentCreateDto, SegmentUpdateDto, User } from '../types';
-
+import { authFetch } from "@/utlis/authfetch";
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
   return {

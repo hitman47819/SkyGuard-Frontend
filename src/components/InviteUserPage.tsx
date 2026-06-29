@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Mail, User, Phone, Shield, AlertCircle, CheckCircle, UserPlus, Eye } from "lucide-react";
-
+import { authFetch } from "@/utlis/authfetch";
 interface InviteUserPageProps {
   userRole: number;
   onInviteSent?: () => void;

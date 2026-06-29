@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type { User as UserType, UpdateUserRequest } from '../types';
 import InviteUserPage from './InviteUserPage';
-
+import { authFetch } from "@/utlis/authfetch";
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
   return {

@@ -16,6 +16,7 @@ import AIResultsPage from './components/AIResultsPage';
 import PacksPage from './components/PacksPage';
 import DroneTypesPage from './components/DroneTypesPage';
 import type { ActiveTab } from './types';
+import { authFetch } from "@/utlis/authfetch";
 
 const ACCESS_TOKEN_KEY = 'skyguard-access-token';
 const REFRESH_TOKEN_KEY = 'skyguard-refresh-token';

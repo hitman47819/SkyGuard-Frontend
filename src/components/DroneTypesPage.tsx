@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plane, Plus, RefreshCw, AlertCircle, CheckCircle, X, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-
+import { authFetch } from "@/utlis/authfetch";
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };

@@ -8,7 +8,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
   Legend, LineChart, Line
 } from 'recharts';
-
+import { authFetch } from "@/utlis/authfetch";
 const COLORS = ['#6366F1', '#A855F7', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#8B5CF6', '#14B8A6', '#F97316'];
 
 const tooltipStyle = {
