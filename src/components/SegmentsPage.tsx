@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
   Layers, Plus, Pencil, Trash2, AlertCircle, CheckCircle,
-  RefreshCw, X, ChevronLeft, ChevronRight, Package
+  RefreshCw, X, ChevronLeft, ChevronRight, Package, Loader2, Clock, Hash, Box
 } from 'lucide-react';
 import type { Segment, SegmentCreateDto, SegmentUpdateDto, User } from '../types';
 import { authFetch } from "@/utlis/authfetch";
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem('skyguard-access-token');
   return {
@@ -12,6 +13,14 @@ const getAuthHeaders = () => {
     Authorization: `Bearer ${token}`,
   };
 };
+
+interface Pack {
+  id: number;
+  packetNumber: number;
+  capturedAt: string;
+  startTime: string;
+  endTime: string;
+}
 
 // Time helpers – splits into date, time (HH:MM), sec, ms
 const splitISO = (iso: string) => {
@@ -64,6 +73,17 @@ export default function SegmentsPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // --- Segment Details Popup state ---
+  const [segmentDetails, setSegmentDetails] = useState<Segment | null>(null);
+  const [segmentDetailsLoading, setSegmentDetailsLoading] = useState(false);
+  const [segmentDetailsError, setSegmentDetailsError] = useState('');
+
+  // --- Pack Details Popup state ---
+  const [packDetails, setPackDetails] = useState<Pack | null>(null);
+  const [packSegments, setPackSegments] = useState<Segment[]>([]);
+  const [packLoading, setPackLoading] = useState(false);
+  const [packError, setPackError] = useState('');
+
   const canEdit = user ? user.userrole === 1 || user.userrole === 2 : false;
 
   const fetchUser = async () => {
@@ -108,6 +128,75 @@ export default function SegmentsPage() {
     fetchUser();
     fetchSegments(page);
   }, [page]);
+
+  // --- Open Segment Details popup (GET /api/Segments/{id}) ---
+  const openSegmentDetails = async (id: number) => {
+    setPackDetails(null);
+    setPackSegments([]);
+    setSegmentDetails(null);
+    setSegmentDetailsError('');
+    setSegmentDetailsLoading(true);
+    try {
+      const res = await authFetch(`/api/Segments/${id}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const raw = await res.json();
+      const data = raw.data ? raw.data : raw;
+      setSegmentDetails({ ...data, id: data.segmentID ?? data.id });
+    } catch (err: any) {
+      setSegmentDetailsError(err.message || 'Failed to load segment');
+    } finally {
+      setSegmentDetailsLoading(false);
+    }
+  };
+
+  const closeSegmentDetails = () => {
+    setSegmentDetails(null);
+    setSegmentDetailsError('');
+  };
+
+  // --- Open Pack Details popup (GET /api/Packs/{id} + GET /api/Segments/pack/{packID}) ---
+  const openPackDetails = async (packId: number) => {
+    setSegmentDetails(null);
+    setPackDetails(null);
+    setPackSegments([]);
+    setPackError('');
+    setPackLoading(true);
+    try {
+      const [packRes, segRes] = await Promise.all([
+        authFetch(`/api/Packs/${packId}`, { headers: getAuthHeaders() }),
+        authFetch(`/api/Segments/pack/${packId}`, { headers: getAuthHeaders() }),
+      ]);
+
+      if (!packRes.ok) throw new Error(`Failed to load pack (Error ${packRes.status})`);
+
+      const packRaw = await packRes.json();
+      const packData = packRaw.data ? packRaw.data : packRaw;
+      setPackDetails(packData);
+
+      if (segRes.ok) {
+        const segRaw = await segRes.json();
+        const segList: Segment[] = (segRaw.data ?? segRaw ?? []).map((s: any) => ({
+          ...s,
+          id: s.segmentID ?? s.id,
+        }));
+        setPackSegments(segList);
+      } else {
+        setPackSegments([]);
+      }
+    } catch (err: any) {
+      setPackError(err.message || 'Failed to load pack');
+    } finally {
+      setPackLoading(false);
+    }
+  };
+
+  const closePackDetails = () => {
+    setPackDetails(null);
+    setPackSegments([]);
+    setPackError('');
+  };
 
   const openCreate = () => {
     setEditingSegment(null);
@@ -238,6 +327,15 @@ export default function SegmentsPage() {
     }
   };
 
+  const formatDuration = (start: string, end: string) => {
+    try {
+      const ms = new Date(end).getTime() - new Date(start).getTime();
+      return `${Math.round(ms / 1000)}s`;
+    } catch {
+      return '—';
+    }
+  };
+
   return (
     <div className="w-full relative py-20 min-h-[95vh]">
       <div className="absolute inset-0 cyber-grid opacity-10 pointer-events-none"></div>
@@ -333,18 +431,30 @@ export default function SegmentsPage() {
                       key={segment.id}
                       className="border-b border-white/5 hover:bg-brand-cyan/5 transition-colors group"
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-brand-cyan">#{segment.id}</td>
+                      <td className="px-4 py-3 font-mono text-xs">
+                        <button
+                          onClick={() => openSegmentDetails(segment.id)}
+                          className="text-brand-cyan hover:text-brand-cyan-light hover:underline cursor-pointer transition-all"
+                          title="View segment details"
+                        >
+                          #{segment.id}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-xs text-white font-bold">{segment.segmentNumber}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-cyan/10 border border-brand-cyan/20 rounded-sm font-mono text-[10px] text-brand-cyan">
+                        <button
+                          onClick={() => openPackDetails(segment.packetId)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-cyan/10 border border-brand-cyan/20 rounded-sm font-mono text-[10px] text-brand-cyan hover:bg-brand-cyan/20 hover:border-brand-cyan/40 transition-all cursor-pointer"
+                          title="View packet details"
+                        >
                           <Package className="w-3 h-3" />
                           {segment.packetId}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3 font-mono text-[11px] text-on-surface-variant">{formatDate(segment.startTime)}</td>
                       <td className="px-4 py-3 font-mono text-[11px] text-on-surface-variant">{formatDate(segment.endTime)}</td>
                       <td className="px-4 py-3 font-mono text-[11px] text-emerald-400">
-                        {Math.round((new Date(segment.endTime).getTime() - new Date(segment.startTime).getTime()) / 1000)}s
+                        {formatDuration(segment.startTime, segment.endTime)}
                       </td>
                       {canEdit && (
                         <td className="px-4 py-3 text-right">
@@ -442,7 +552,7 @@ export default function SegmentsPage() {
                 </div>
               </div>
 
-              {/* Start Time – explicit fields */}
+              {/* Start Time */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                   Start Time
@@ -483,7 +593,7 @@ export default function SegmentsPage() {
                 </div>
               </div>
 
-              {/* End Time – explicit fields */}
+              {/* End Time */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                   End Time
@@ -541,6 +651,253 @@ export default function SegmentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Segment Details Popup */}
+      {(segmentDetails || segmentDetailsLoading || segmentDetailsError) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={closeSegmentDetails}
+        >
+          <div
+            className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-white/5">
+              <h2 className="font-display text-lg font-bold text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-brand-cyan" />
+                Segment Details
+              </h2>
+              <button
+                onClick={closeSegmentDetails}
+                className="p-1 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              {segmentDetailsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 text-brand-cyan animate-spin" />
+                </div>
+              ) : segmentDetailsError ? (
+                <div className="flex items-center gap-2 px-4 py-3 border border-rose-500/30 bg-rose-500/10 rounded-sm text-rose-300 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {segmentDetailsError}
+                </div>
+              ) : segmentDetails ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Hash className="w-3 h-3" /> Segment ID
+                      </div>
+                      <div className="font-mono text-sm text-brand-cyan font-bold">#{segmentDetails.id}</div>
+                    </div>
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Layers className="w-3 h-3" /> Segment #
+                      </div>
+                      <div className="font-mono text-sm text-white font-bold">{segmentDetails.segmentNumber}</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                      <Package className="w-3 h-3" /> Packet ID
+                    </div>
+                    <button
+                      onClick={() => openPackDetails(segmentDetails.packetId)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-cyan/10 border border-brand-cyan/20 rounded-sm font-mono text-xs text-brand-cyan hover:bg-brand-cyan/20 hover:border-brand-cyan/40 transition-all"
+                    >
+                      <Package className="w-3 h-3" />
+                      {segmentDetails.packetId}
+                    </button>
+                  </div>
+
+                  <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                      <Clock className="w-3 h-3" /> Start Time
+                    </div>
+                    <div className="font-mono text-xs text-white">{formatDate(segmentDetails.startTime)}</div>
+                  </div>
+
+                  <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                      <Clock className="w-3 h-3" /> End Time
+                    </div>
+                    <div className="font-mono text-xs text-white">{formatDate(segmentDetails.endTime)}</div>
+                  </div>
+
+                  <div className="p-3 bg-brand-cyan/5 border border-brand-cyan/20 rounded-sm">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                      <Clock className="w-3 h-3" /> Duration
+                    </div>
+                    <div className="font-mono text-lg text-emerald-400 font-bold">
+                      {formatDuration(segmentDetails.startTime, segmentDetails.endTime)}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-end pt-4 border-t border-white/5 mt-4">
+                <button
+                  onClick={closeSegmentDetails}
+                  className="px-4 py-2 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all font-mono text-xs uppercase tracking-wider rounded-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pack Details Popup */}
+      {(packDetails || packLoading || packError) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={closePackDetails}
+        >
+          <div
+            className="bg-brand-slate border border-white/10 rounded-sm w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-white/5">
+              <h2 className="font-display text-lg font-bold text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-brand-cyan" />
+                Packet Details
+              </h2>
+              <button
+                onClick={closePackDetails}
+                className="p-1 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto">
+              {packLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 text-brand-cyan animate-spin" />
+                </div>
+              ) : packError ? (
+                <div className="flex items-center gap-2 px-4 py-3 border border-rose-500/30 bg-rose-500/10 rounded-sm text-rose-300 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {packError}
+                </div>
+              ) : packDetails ? (
+                <div className="space-y-4">
+                  {/* Pack info */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Hash className="w-3 h-3" /> Packet ID
+                      </div>
+                      <div className="font-mono text-sm text-brand-cyan font-bold">#{packDetails.id}</div>
+                    </div>
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Box className="w-3 h-3" /> Packet Number
+                      </div>
+                      <div className="font-mono text-sm text-white font-bold">{packDetails.packetNumber}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Clock className="w-3 h-3" /> Captured
+                      </div>
+                      <div className="font-mono text-[11px] text-white">{formatDate(packDetails.capturedAt)}</div>
+                    </div>
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Clock className="w-3 h-3" /> Start
+                      </div>
+                      <div className="font-mono text-[11px] text-white">{formatDate(packDetails.startTime)}</div>
+                    </div>
+                    <div className="p-3 bg-brand-bg/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant font-mono font-bold mb-1">
+                        <Clock className="w-3 h-3" /> End
+                      </div>
+                      <div className="font-mono text-[11px] text-white">{formatDate(packDetails.endTime)}</div>
+                    </div>
+                  </div>
+
+                  {/* Segments list */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-display text-sm font-bold text-white flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-brand-cyan" />
+                        Segments in this packet
+                      </h3>
+                      <span className="font-mono text-[10px] text-on-surface-variant">
+                        {packSegments.length} total
+                      </span>
+                    </div>
+
+                    {packSegments.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-on-surface-variant text-sm border border-white/5 rounded-sm bg-brand-bg/30">
+                        <Layers className="w-6 h-6 mx-auto mb-2 opacity-30" />
+                        No segments in this packet
+                      </div>
+                    ) : (
+                      <div className="border border-white/5 rounded-sm overflow-hidden">
+                        <div className="max-h-72 overflow-y-auto">
+                          <table className="w-full">
+                            <thead className="sticky top-0">
+                              <tr className="border-b border-white/5 bg-brand-bg/80">
+                                <th className="text-left px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-on-surface-variant font-bold">ID</th>
+                                <th className="text-left px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-on-surface-variant font-bold">Seg #</th>
+                                <th className="text-left px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-on-surface-variant font-bold">Start</th>
+                                <th className="text-left px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-on-surface-variant font-bold">End</th>
+                                <th className="text-left px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-on-surface-variant font-bold">Dur</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {packSegments.map((seg) => (
+                                <tr
+                                  key={seg.id}
+                                  onClick={() => openSegmentDetails(seg.id)}
+                                  className="border-b border-white/5 hover:bg-brand-cyan/10 transition-colors cursor-pointer group"
+                                >
+                                  <td className="px-3 py-2 font-mono text-[11px] text-brand-cyan group-hover:underline">
+                                    #{seg.id}
+                                  </td>
+                                  <td className="px-3 py-2 text-[11px] text-white font-bold">{seg.segmentNumber}</td>
+                                  <td className="px-3 py-2 font-mono text-[10px] text-on-surface-variant">
+                                    {formatDate(seg.startTime)}
+                                  </td>
+                                  <td className="px-3 py-2 font-mono text-[10px] text-on-surface-variant">
+                                    {formatDate(seg.endTime)}
+                                  </td>
+                                  <td className="px-3 py-2 font-mono text-[10px] text-emerald-400">
+                                    {formatDuration(seg.startTime, seg.endTime)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-end pt-4 border-t border-white/5 mt-4">
+                <button
+                  onClick={closePackDetails}
+                  className="px-4 py-2 border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all font-mono text-xs uppercase tracking-wider rounded-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
